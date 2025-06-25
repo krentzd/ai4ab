@@ -13,3 +13,15 @@ This repository contains the source code to reproduce the analysis from "Deep le
 2) Move embedding data to directory `DATA` in `ai4ab`
 3) Run analysis notebooks
 
+
+## How to cite
+```bibtex
+@article{krentzel2025deep,
+  title={Deep learning recognises antibiotic modes of action from brightfield images},
+  author={Krentzel, Daniel and Kho, Kelvin and Petit, Julienne and Mahtal, Nassim and Chiaravalli, Jeanne and Shorte, Spencer L and Wehenkel, Anne Marie and Boneca, Ivo G and Zimmer, Christophe},
+  journal={bioRxiv},
+  pages={2025--03},
+  year={2025},
+  publisher={Cold Spring Harbor Laboratory}
+}
+```
