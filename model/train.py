@@ -6,10 +6,12 @@ import json
 import os
 import numpy as np
 import torchvision
+import random
+import glob
 
 from load_data import load_data
 from utils import plot_sample_batch
-from models import WeakCNN, SelfAttentionWeakCNN
+from models import AvgPoolCNN
 
 def make_dir(dir):
     """Create directories including subdirectories"""
@@ -17,57 +19,6 @@ def make_dir(dir):
     for idx in range(1, len(dir_lst) + 1):
         if not os.path.exists(os.path.join(*dir_lst[:idx])):
             os.mkdir(os.path.join(*dir_lst[:idx]))
-
-def save_attention_map_overlay(attention_matrix, data, epoch, save_dir):
-    # Dims: batch_size, n_crops, height, width
-    make_dir(os.path.join(save_dir, 'attention_maps'))
-
-    # __, __, im_dim = attention_matrix.size()
-
-    ones = torch.ones(1, 9)
-
-    attention_map = torch.matmul(ones, attention_matrix[0].cpu()).squeeze().numpy()
-
-    # a_row_list = []
-    # for h in range(im_dim):
-    #     row_elements = [attention_map[i + h * im_dim] for i in range(im_dim)]
-    #     a_row_list.append(np.hstack(row_elements))
-    #
-    # attention_image = np.vstack(a_row_list)
-
-    a_row_0 = np.hstack((attention_map[0], attention_map[1], attention_map[2]))
-    a_row_1 = np.hstack((attention_map[3], attention_map[4], attention_map[5]))
-    a_row_2 = np.hstack((attention_map[6], attention_map[7], attention_map[8]))
-
-    attention_image = np.vstack((a_row_0, a_row_1, a_row_2))
-
-    # attention_map = attention_map[0].cpu().numpy()
-
-    plt.figure('Attention map')
-    plt.imshow(attention_image)
-    plt.savefig(os.path.join(save_dir, 'attention_maps', f'attention_map_epoch_{epoch}.png'))
-    plt.colorbar()
-    plt.close()
-
-    image = data[0].cpu().numpy()
-
-    # row_list = []
-    # for h in range(im_dim):
-    #     row_elements = [image[i + h * im_dim][3] for i in range(im_dim)]
-    #     row_list.append(np.hstack(row_elements))
-    #
-    # concat_image = np.vstack(row_list)
-
-    row_0 = np.hstack((image[0][-1], image[1][-1], image[2][-1]))
-    row_1 = np.hstack((image[3][-1], image[4][-1], image[5][-1]))
-    row_2 = np.hstack((image[6][-1], image[7][-1], image[8][-1]))
-
-    concat_image = np.vstack((row_0, row_1, row_2))
-
-    plt.figure('Figure')
-    plt.imshow(concat_image, cmap='gray')
-    plt.savefig(os.path.join(save_dir, 'attention_maps', f'image_epoch_{epoch}.png'))
-    plt.close()
 
 def train(model,
           criterion,
@@ -85,7 +36,8 @@ def train(model,
     val_loss_history = []
     val_accuracy_history = []
 
-    for epoch in range(epochs):
+    start_epoch = kwargs.get('start_epoch', 0)
+    for epoch in range(start_epoch, epochs):
         epoch_loss = 0
         epoch_accuracy = 0
 
@@ -94,11 +46,7 @@ def train(model,
             data = data.to(device)
             label = label.to(device)
 
-            if kwargs.get('self_attention', False):
-                output, __, __ = model(data)
-
-            else:
-                output, __ = model(data)
+            output, __ = model(data)
             loss = criterion(output, label)
 
             optimizer.zero_grad()
@@ -121,10 +69,7 @@ def train(model,
                 data = data.to(device)
                 label = label.to(device)
 
-                if kwargs.get('self_attention', False):
-                    val_output, __, attention_map = model(data)
-                else:
-                    val_output, __ = model(data)
+                val_output, __ = model(data)
 
                 val_loss = criterion(val_output,label)
                 acc = ((val_output.argmax(dim=1) == label).float().mean())
@@ -143,9 +88,6 @@ def train(model,
                         'loss': loss
             }, os.path.join(save_dir, f'ckpts/model_ckpt_{epoch + 1}_{epoch_val_loss.cpu().detach().numpy():.2f}.tar'))
 
-        if kwargs.get('self_attention', False):
-            save_attention_map_overlay(attention_map, data, epoch, save_dir)
-
         # Save updated training curves after each epoch
         plt.figure('Loss')
         plt.plot(train_loss_history, label='train')
@@ -153,7 +95,7 @@ def train(model,
         plt.xlim([0, epochs])
         plt.legend()
         plt.title('Loss')
-        plt.savefig(os.path.join(save_dir, 'loss_curves.png'))
+        plt.savefig(os.path.join(save_dir, f'loss_curves_from_{start_epoch}.png'))
         plt.close()
 
         plt.figure('Accuracy')
@@ -162,7 +104,7 @@ def train(model,
         plt.xlim([0, epochs])
         plt.legend()
         plt.title('Accuracy')
-        plt.savefig(os.path.join(save_dir, 'accuracy_curves.png'))
+        plt.savefig(os.path.join(save_dir, f'accuracy_curves_from_{start_epoch}.png'))
         plt.close()
 
 
@@ -172,19 +114,25 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', required=False)
     parser.add_argument('--save_dir', required=True)
     parser.add_argument('--dropped_classes', nargs='+', default=[])
+    parser.add_argument('--dropped_moa', nargs='+', default=[])
     parser.add_argument('--train_dir', nargs='+', default=[])
+    parser.add_argument('--val_dir', nargs='+', default=[])
     parser.add_argument('--test_dir', nargs='+', default=[])
-    parser.add_argument('--dose', default=3, type=int)
-    parser.add_argument('--num_channels', default=4, type=int)
-    parser.add_argument('--channels', nargs='+', default=None)
+    parser.add_argument('--dose', default=None, type=str)
+    parser.add_argument('--num_channels', default=3, type=int)
+    parser.add_argument('--channels', nargs='+', default=None, type=int)
     parser.add_argument('--crop_size', default=512, type=int)
     parser.add_argument('--val_split', default=0.2, type=float)
     parser.add_argument('--batch_size', default=128, type=int)
+    parser.add_argument('--bottleneck_size', default=None)
+    parser.add_argument('--n_crops', default=9, type=int)
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--lr', default=0.001, type=float)
     parser.add_argument('--l2', default=0, type=float)
+    parser.add_argument('--subsampling_factor', default=1, type=float)
     parser.add_argument('--ckpt_path', default=None)
-    parser.add_argument('--self_attention', action='store_true', default=False)
+    parser.add_argument('--use_e_coli_moa', action='store_true', default=False)
+    parser.add_argument('--max_pool_model', action='store_true', default=False)
     parser.add_argument('--freeze_layers', action='store_true', default=False)
     parser.add_argument('--pretrained', action='store_true', default=False)
     parser.add_argument('--data_type', default='tiff')
@@ -206,23 +154,77 @@ if __name__ == '__main__':
     if args.channels:
         args.num_channels = len(args.channels)
 
-    if len(args.train_dir) == 0:
-        # all_dir = [f'R1/dose_{args.dose}', f'R2/dose_{args.dose}', f'R3/dose_{args.dose}', f'R4/dose_{args.dose}']#, f'R5/dose_{args.dose}', f'R6/dose_{args.dose}' , f'R6_1_to_10/dose_{args.dose}', f'R6A_1_to_10/dose_{args.dose}']
-        # all_dir = [f'R1', f'R2', f'R3', f'R4']#, f'R5/dose_{args.dose}', f'R6/dose_{args.dose}' , f'R6_1_to_10/dose_{args.dose}', f'R6A_1_to_10/dose_{args.dose}']
-        all_dir = [f'R6/dose_{args.dose}', f'R6A/dose_{args.dose}', f'R6B/dose_{args.dose}']
 
-        args.train_dir = [dir for dir in all_dir if dir not in args.test_dir]
+    all_dir = os.listdir(args.data_dir)
+
+    if args.dose:
+        all_dir = [os.path.join(d, args.dose) for d in all_dir]
+
+    if args.val_dir[0] == 'None':
+        args.val_dir = None
+
+    elif len(args.val_dir) == 0:
+        args.val_dir = [random.choice([dir for dir in all_dir if dir not in args.test_dir])]
+
+    if len(args.train_dir) == 0:
+        if args.val_dir:
+            args.train_dir = [dir for dir in all_dir if dir not in args.test_dir + args.val_dir]
+        else:
+            args.train_dir = [dir for dir in all_dir if dir not in args.test_dir]
+
+    print('Train: ', args.train_dir)
+    print('Val: ', args.val_dir)
+    print('Test: ', args.test_dir)
+
+
+    if args.ckpt_path:
+        if eval(args.ckpt_path) == -1:
+            try:
+                ckpt_paths = glob.glob(os.path.join(args.save_dir, 'ckpts', '*.tar'))
+                args.ckpt_path = sorted(ckpt_paths, key=lambda s: os.path.basename(s).split('_')[2])[-1]
+            except IndexError:
+                args.ckpt_path = None
+        else:
+            start_epoch = eval(os.path.basename(args.ckpt_path).split('_')[2])
+    else:
+        start_epoch = 0
+
+    if len(args.dropped_moa) > 0 and args.use_e_coli_moa:
+        doses = ['0.125xIC50', '0.25xIC50', '0.5xIC50', '1xIC50']
+        for moa in args.dropped_moa:
+            if moa == 'PBP1':
+                class_names = ['Cefsulodin', 'PenicillinG', 'Sulbactam']
+            elif moa == 'PBP2':
+                class_names = ['Avibactam', 'Mecillinam', 'Meropenem', 'Relebactam', 'Clavulanate']
+            elif moa == 'PBP3':
+                class_names = ['Aztreonam', 'Ceftriaxone', 'Cefepime']
+            elif moa == 'Gyrase':
+                class_names = ['Ciprofloxacin', 'Levofloxacin', 'Norfloxacin']
+            elif moa == 'Ribosome':
+                class_names = ['Doxycycline', 'Kanamycin', 'Chloramphenicol', 'Clarithromycin']
+            elif moa == 'Membrane':
+                class_names = ['Colistin', 'PolymyxinB']
+
+            class_names_ = [c for c in ['Ciprofloxacin', 'Cefsulodin', 'Relebactam', 'Ceftriaxone', 'Doxycycline'] if c not in class_names]
+
+            class_names += class_names_
+
+            classes_ = [f'{x}_{d}' for d in doses for x in class_names]
+            args.dropped_classes += classes_
 
     with open(os.path.join(args.save_dir, 'commandline_args.txt'), 'w') as f:
         json.dump(args.__dict__, f, indent=2)
 
-    train_loader, val_loader, __, classes = load_data(root_dir=args.data_dir,
-                                                                train_test_dir=[args.train_dir, args.test_dir],
-                                                                batch_size=args.batch_size,
-                                                                val_split=args.val_split,
-                                                                crop_size=args.crop_size,
-                                                                channels=args.channels,
-                                                                data_type=args.data_type)
+    train_loader, val_loader, __, classes, class_weights = load_data(root_dir=args.data_dir,
+                                                      	             train_val_test_dir=[args.train_dir, args.val_dir, args.test_dir],
+                				                                  	 dropped_classes=args.dropped_classes,
+                				                                  	 batch_size=args.batch_size,
+                				                                  	 val_split=args.val_split,
+                				                                  	 crop_size=args.crop_size,
+                				                                  	 channels=args.channels,
+                				                                  	 data_type=args.data_type,
+                				                                  	 subsampling_factor=args.subsampling_factor,
+                                                                     use_e_coli_moa=args.use_e_coli_moa)
 
     print('Classes', classes)
     # Plot a sample batch and save
@@ -234,20 +236,16 @@ if __name__ == '__main__':
     # Instantiate CNN, optimizer and loss function
     num_tiles = int((1500 / args.crop_size) ** 2)
 
-    if not args.self_attention:
-        model = WeakCNN(num_classes=len(classes),
-                        num_channels=args.num_channels,
-                        pretrained=args.pretrained).to(device)
+    model = AvgPoolCNN(num_classes=len(classes),
+                       num_channels=args.num_channels,
+                       pretrained=args.pretrained).to(device)
 
-    elif args.self_attention:
-        model = SelfAttentionWeakCNN(num_classes=len(classes),
-                        num_channels=args.num_channels,
-                        pretrained=False).to(device)
 
     print(model)
     print('Trainable parameters:', sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     if args.ckpt_path:
+        print(f'Loading model from checkpoint {args.ckpt_path}...')
         ckpt = torch.load(args.ckpt_path)
         model.load_state_dict(ckpt['model_state_dict'])
         if args.freeze_layers:
@@ -259,7 +257,9 @@ if __name__ == '__main__':
     model = model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.l2)
-    criterion = nn.CrossEntropyLoss()
+    class_weights = torch.Tensor(class_weights).to(device)
+    print('Class weights', classes, class_weights)
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     train(model=model,
           criterion=criterion,
@@ -267,5 +267,4 @@ if __name__ == '__main__':
           epochs=args.epochs,
           train_loader=train_loader,
           val_loader=val_loader,
-          save_dir=args.save_dir,
-          self_attention=args.self_attention)
+          save_dir=args.save_dir)

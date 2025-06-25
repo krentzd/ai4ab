@@ -124,9 +124,15 @@ def plot_predictions(images, labels, preds, n_images, test_acc, save_dir, classe
         true_label = labels[i]
         pred = preds[i]
         image = image / 2 + 0.5     # unnormalize
-        image = image.permute(1, 2, 0)
+        image = image.permute(1, 2, 0).cpu().numpy()
 
-        ax.imshow(image.cpu().numpy(), cmap='gray')
+        if image.shape[2] == 2:
+            image_ = np.zeros((image.shape[0], image.shape[1], 3))
+            image_[...,:2] = image
+            image_[...,2:] = image[...,:1]
+            image = image_
+
+        ax.imshow(image, cmap='gray')
         ax.set_title(f'true label: {classes[true_label]}\n'\
                      f'pred label: {classes[pred]}',
                      fontsize="large")
