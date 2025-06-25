@@ -11,5 +11,5 @@ This repository contains the source code to reproduce the analysis from "Deep le
 ## Usage 
 1) Download embeddings from zotero:
 2) Move embedding data to directory `DATA` in `ai4ab`
-3) Run notebooks
+3) Run analysis notebooks
 
