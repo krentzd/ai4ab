@@ -1,7 +1,7 @@
 # Deep learning recognises antibiotic mode of action from brightfield images
 
 ## Description 
-This repository contains the source code to reproduce the figures from "Deep learning recognises antibiotic mode of action from brightfield images".
+This repository contains the source code to reproduce the analysis from "Deep learning recognises antibiotic mode of action from brightfield images".
 
 ## Installation
 1) Clone the repository with `git clone https://github.com/krentzd/ai4ab.git`
