@@ -1,6 +1,15 @@
-# Deep learning recognises antibiotic mode of action from brightfield images
+
+<h1 align="center">
+AI for Antibiotics (AI4AB)
+
+</h1>
+
+### Deep learning recognises antibiotic mode of action from brightfield images
 <p align="center">
     <a href="https://www.biorxiv.org/content/10.1101/2025.03.30.645928v3"><img alt="Paper" src="https://img.shields.io/badge/paper-bioRxiv-%23b62b39"></a>
+    <a href="https://github.com/krentzd/ai4ab/"><img alt="github" src="https://img.shields.io/github/stars/krentzd/ai4ab?style=social"></a>
+    <a href="https://github.com/krentzd/ai4ab/"><img alt="github" src="https://img.shields.io/github/forks/krentzd/ai4ab?style=social"></a>
+</p>
 </p>
 ## Description 
 This repository contains the source code to reproduce the analysis from "Deep learning recognises antibiotic mode of action from brightfield images".
