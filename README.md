@@ -1,5 +1,7 @@
 # Deep learning recognises antibiotic mode of action from brightfield images
-
+<p align="center">
+    <a href="https://www.biorxiv.org/content/10.1101/2025.03.30.645928v3"><img alt="Paper" src="https://img.shields.io/badge/paper-bioRxiv-%23b62b39"></a>
+</p>
 ## Description 
 This repository contains the source code to reproduce the analysis from "Deep learning recognises antibiotic mode of action from brightfield images".
 
@@ -9,7 +11,7 @@ This repository contains the source code to reproduce the analysis from "Deep le
 3) Navigate to the direcotry containing the cloned repository and install the necessary packages in your conda environment with `pip install -r requirements.txt`
    
 ## Usage 
-1) Download embedding data here
+1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)
 2) Move embedding data to directory `DATA` in `ai4ab`
 3) Run analysis notebooks
 
