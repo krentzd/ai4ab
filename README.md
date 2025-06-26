@@ -22,7 +22,7 @@ This repository contains the source code to reproduce the analysis from "Deep le
    
 ## Usage 
 1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)
-2) Move embedding data to directory `DATA` in `ai4ab`
+2) Unzip file and move embedding data to directory `DATA` in `ai4ab`
 3) Run analysis notebooks
 
 ## How to cite
