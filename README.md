@@ -5,14 +5,13 @@ This repository contains the source code to reproduce the analysis from "Deep le
 
 ## Installation
 1) Clone the repository with `git clone https://github.com/krentzd/ai4ab.git`
-2) Create a conda environment with `conda create -n python_env python=3.9`
-3) Navigate to the direcotry containing the repository and install the necessary packages with `pip install -r requirements.txt`
+2) Create a conda environment with Python 3.9.19
+3) Navigate to the direcotry containing the cloned repository and install the necessary packages in your conda environment with `pip install -r requirements.txt`
    
 ## Usage 
-1) Download embeddings from zotero:
+1) Download embedding data here
 2) Move embedding data to directory `DATA` in `ai4ab`
 3) Run analysis notebooks
-
 
 ## How to cite
 ```bibtex
