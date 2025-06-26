@@ -14,7 +14,7 @@ AI for Antibiotics (AI4AB)
 
 ## Overview 
 This repository contains the source code to reproduce the analysis from "Deep learning recognises antibiotic mode of action from brightfield images".
-
+![width=10](docs%2Fimages%2FOverview_figure.png)
 ## Installation
 1) Clone the repository with `git clone https://github.com/krentzd/ai4ab.git`
 2) Create a conda environment with `python=3.9`
@@ -22,7 +22,7 @@ This repository contains the source code to reproduce the analysis from "Deep le
    
 ## Usage 
 1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)
-2) Move embedding data to directory `DATA` in `ai4ab`
+2) Unzip file and move embedding data to directory `DATA` in `ai4ab`
 3) Run analysis notebooks
 
 ## How to cite
