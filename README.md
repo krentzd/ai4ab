@@ -11,7 +11,8 @@ AI for Antibiotics (AI4AB)
     <a href="https://github.com/krentzd/ai4ab/"><img alt="github" src="https://img.shields.io/github/forks/krentzd/ai4ab?style=social"></a>
 </p>
 </p>
-## Description 
+
+## Overview 
 This repository contains the source code to reproduce the analysis from "Deep learning recognises antibiotic mode of action from brightfield images".
 
 ## Installation
