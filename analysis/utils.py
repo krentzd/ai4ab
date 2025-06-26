@@ -871,8 +871,7 @@ class ResultsPlotter:
 class SubsamplingDataLoader:
     def __init__(
         self,
-        params_dir='E_coli_params',
-        pretrained=True
+        params_dir='E_coli_params'
     ):
         self.params_dir = params_dir
 
@@ -1146,3 +1145,82 @@ class SubsamplingPlotter:
         fig.subplots_adjust(top=0.9)
         plt.savefig(save_name)
         plt.show()
+
+class LOCODataLoader:
+    def __init__(
+        self,
+        params_dir='E_coli_params'
+    ):
+        self.params_dir = params_dir
+        self.cmpd_names = ['Cefsulodin','PenicillinG', 'Avibactam', 'Mecillinam', 'Meropenem', 'Aztreonam', 'Ceftriaxone', 'Cefepime', 'Clavulanate', 'Relebactam', 'Sulbactam', 'Ciprofloxacin', 'Levofloxacin','Norfloxacin', 'Doxycycline', 'Kanamycin', 'Chloramphenicol', 'Clarithromycin', 'Colistin', 'PolymyxinB', 'Rifampicin', 'Trimethoprim']
+    def _load_files(
+        self,
+        compound,
+        replicate
+    ):
+        path_pattern = f'../DATA/E_coli/AvgPoolCNN_leave_one_cmpd_out_BF/test_on_rep_{replicate}/dropped_{compound}/Plate_{replicate}/'
+        path = glob(path_pattern)[0]
+
+        feat_vecs = np.loadtxt(os.path.join(path, 'feat_vecs.txt'))
+        labels = np.loadtxt(os.path.join(path, 'labels.txt'))
+        preds = np.loadtxt(os.path.join(path, 'preds.txt'))
+        test_outputs = np.loadtxt(os.path.join(path, 'test_outputs.txt'))
+        return feat_vecs, labels, preds, test_outputs
+
+    def load_files(
+        self
+    ):
+        feat_vecs = []
+        labels = []
+        preds = []
+        test_outputs = []
+        plate_id = []
+        compound_id = []
+
+        for cmpd_id, cmpd in enumerate(self.cmpd_names):
+            for p_id, rep in enumerate([1,2,3,4]):
+                feat_vecs_, labels_, preds_, test_outputs_ = self._load_files(cmpd, rep)
+
+                feat_vecs.append(feat_vecs_)
+                labels.append(labels_)
+                preds.append(preds_)
+                test_outputs.append(test_outputs_)
+                plate_id.append(np.ones_like(labels_) * p_id)
+                compound_id.append(np.ones_like(labels_) * cmpd_id)
+
+        self.feat_vecs = np.vstack(test_outputs)
+        self.labels = np.hstack(labels)
+        self.preds = np.hstack(preds)
+        self.test_outputs = np.vstack(test_outputs)
+        self.plate_id = np.hstack(plate_id)
+        self.compound_id = np.hstack(compound_id)
+
+        self._get_labels(self.params_dir)
+
+    def _load_labels_from_specs(
+        self,
+        params_dir
+    ):
+        d = []
+        for l in ['moa_dict', 'dose_dict', 'classes', 'moa_classes', 'labels_srtd_by_moa', 'moa_labels_srtd']:
+            with open(os.path.join(params_dir, f'{l}.json'), 'r') as f:
+                d.append(json.load(f))
+        return tuple(d)
+
+    def _get_labels(
+        self,
+        params_dir
+    ):
+        self.moa_dict, self.dose_dict, self.classes, self.moa_classes, self.labels_srtd_by_moa, self.moa_labels_srtd = self._load_labels_from_specs(params_dir)
+
+        self.moa_dict_w_dose = {k: (v, self.dose_dict[k.split('_')[1]] if k not in ['DMSO'] else 0) for k, v in self.moa_dict.items()}
+        self.moa_to_num = dict(zip(self.moa_classes, [i for i in range(len(self.moa_classes))]))
+
+        self.label_to_name = dict(zip([i for i in range(len(self.classes))], self.classes))
+        self.mic_id = [self.moa_dict_w_dose[self.label_to_name[l]][1] for l in self.labels]
+
+        self.moa_labels = [self.moa_to_num[self.moa_dict_w_dose[self.label_to_name[l]][0]] for l in self.labels]
+        self.moa_preds = [self.moa_to_num[self.moa_dict_w_dose[self.label_to_name[l]][0]] for l in self.preds]
+
+        self.labels_as_name = [self.label_to_name[l].split('_')[0] for l in self.labels]
+        self.moa_labels_as_name = [[self.moa_dict_w_dose[self.label_to_name[l]][0]][0] for l in self.labels]
