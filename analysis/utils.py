@@ -200,7 +200,6 @@ class ResultsPlotter:
 
         elif label_name == 'MoA':
             label_dict = dict(zip([i for i in classes_true], [self.moa_labels_strd.index(c) for c in classes_true]))
-            print(label_dict)
 
             labels = [label_dict[l] for l in labels]
             preds = [label_dict[l] for l in preds]
@@ -1508,3 +1507,501 @@ class LOCOPlotter:
             ax.set_title(f'{m_n}', fontsize=11)
             # plt.savefig(f'loco_preds_across_plates_{m_n}.svg')
             plt.show()
+
+class LOMODataLoader:
+    def __init__(
+        self,
+        params_dir='E_coli_params'
+    ):
+        self.params_dir = params_dir
+        self.moa_names = ['Gyrase', 'Membrane', 'PBP1', 'PBP2', 'PBP3', 'Ribosome']
+    def _load_files(
+        self,
+        moa,
+        replicate
+    ):
+        path_pattern = f'../DATA/E_coli/AvgPoolCNN_leave_one_moa_out_BF/test_on_rep_{replicate}/dropped_{moa}/Plate_{replicate}/'
+        path = glob(path_pattern)[0]
+
+        feat_vecs = np.loadtxt(os.path.join(path, 'feat_vecs.txt'))
+        labels = np.loadtxt(os.path.join(path, 'labels.txt'))
+        preds = np.loadtxt(os.path.join(path, 'preds.txt'))
+
+        return feat_vecs, labels, preds
+
+    def load_files(
+        self
+    ):
+        feat_vecs = []
+        labels = []
+        preds = []
+        plate_id = []
+        moa_id = []
+
+        for moa_id_, moa in enumerate(self.moa_names):
+            for p_id, rep in enumerate([1,2,3,4]):
+                feat_vecs_, labels_, preds_ = self._load_files(moa, rep)
+
+                feat_vecs.append(feat_vecs_)
+                labels.append(labels_)
+                preds.append(preds_)
+                plate_id.append(np.ones_like(labels_) * p_id)
+                moa_id.append(np.ones_like(labels_) * moa_id_)
+
+        self.feat_vecs = np.vstack(feat_vecs)
+        self.labels = np.hstack(labels)
+        self.preds = np.hstack(preds)
+        self.plate_id = np.hstack(plate_id)
+        self.moa_id = np.hstack(moa_id)
+
+        self._get_labels(self.params_dir)
+
+    def _load_labels_from_specs(
+        self,
+        params_dir
+    ):
+        d = []
+        for l in ['moa_dict', 'moa_dict_inv', 'dose_dict', 'classes', 'moa_classes', 'labels_srtd_by_moa', 'moa_labels_srtd']:
+            with open(os.path.join(params_dir, f'{l}.json'), 'r') as f:
+                d.append(json.load(f))
+        return tuple(d)
+
+    def _get_labels(
+        self,
+        params_dir
+    ):
+        self.moa_dict, self.moa_dict_inv, self.dose_dict, self.classes, self.moa_classes, self.labels_srtd_by_moa, self.moa_labels_srtd = self._load_labels_from_specs(params_dir)
+
+        self.moa_dict_w_dose = {k: (v, self.dose_dict[k.split('_')[1]] if k not in ['DMSO'] else 0) for k, v in self.moa_dict.items()}
+        self.moa_to_num = dict(zip(self.moa_classes, [i for i in range(len(self.moa_classes))]))
+
+        self.label_to_name = dict(zip([i for i in range(len(self.classes))], self.classes))
+        self.mic_id = [self.moa_dict_w_dose[self.label_to_name[l]][1] for l in self.labels]
+
+        self.moa_labels = [self.moa_to_num[self.moa_dict_w_dose[self.label_to_name[l]][0]] for l in self.labels]
+        self.moa_preds = [self.moa_to_num[self.moa_dict_w_dose[self.label_to_name[l]][0]] for l in self.preds]
+
+        self.labels_as_name = [self.label_to_name[l].split('_')[0] for l in self.labels]
+        self.moa_labels_as_name = [[self.moa_dict_w_dose[self.label_to_name[l]][0]][0] for l in self.labels]
+
+class LOMOPlotter:
+    def __init__(
+        self,
+        loader
+    ):
+        self.feat_vecs = loader.feat_vecs
+        self.labels = loader.labels
+        self.moa_dict = loader.moa_dict
+        self.plate_id = loader.plate_id
+        self.moa_id = loader.moa_id
+        self.mic_id = loader.mic_id
+        self.classes = loader.classes
+        self.moa_dict_w_dose = loader.moa_dict_w_dose
+        self.label_to_name = loader.label_to_name
+        self.moa_to_num = loader.moa_to_num
+        self.moa_classes = loader.moa_classes
+        self.moa_dict_inv = loader.moa_dict_inv
+        self.moa_labels = loader.moa_labels
+        self.labels_as_name = loader.labels_as_name
+
+    def index(
+        self,
+        input_maps,
+        input_choices
+    ):
+        "Returns boolean list to index array"
+        idx_list_ = []
+        for maps, choices in zip(input_maps, input_choices):
+            idx_list_.append(np.logical_or.reduce([np.array(maps) == c for c in choices]))
+
+        return np.logical_and.reduce(idx_list_)
+
+    def plot_roc_curves(
+        self
+    ):
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.model_selection import train_test_split
+        from sklearn import metrics
+        from sklearn.neighbors import LocalOutlierFactor
+
+        cmpd_name_list = ['Ciprofloxacin', 'Norfloxacin', 'Levofloxacin', 'Colistin', 'PolymyxinB', 'PenicillinG', 'Cefsulodin', 'Sulbactam', 'Mecillinam', 'Avibactam', 'Meropenem', 'Clavulanate', 'Relebactam', 'Cefepime', 'Ceftriaxone', 'Aztreonam', 'Doxycycline', 'Kanamycin', 'Clarithromycin', 'Chloramphenicol']
+
+        moa_name_list = ['Cell wall (PBP 1)', 'Cell wall (PBP 2)', 'Cell wall (PBP 3)', 'Gyrase', 'Ribosome', 'Membrane integrity']
+
+        addtnl_dropped_cmpds_list = [['Cefsulodin', 'Relebactam', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Relebactam', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Relebactam', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Relebactam', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Relebactam', 'Ceftriaxone']]
+
+
+        clf = LocalOutlierFactor(n_neighbors=9, metric='cosine', novelty=True, p=2)
+
+        fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(7,5))
+
+
+        for ax_coords, m_idx, m_n, clr in zip([(0,0), (0,1), (0,2), (1,0), (1,1), (1,2)], [2,3,4,0,5,1], moa_name_list, ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown']):
+
+            ax_i, ax_j = ax_coords
+
+            detect_val_fp_all = []
+            detect_val_tp_all = []
+            ### Identify outliers in dropped compounds to identify true positives ###
+            detected_outliers = 0
+            num_drugs = 0
+
+
+            for rep in [0,1,2,3]:
+                detect_val_tp = []
+                detect_val_fp = []
+                idx = self.index([self.moa_id, self.mic_id, self.plate_id], [[m_idx], [0,1,2,3,4], [rep]])
+
+                feat_vecs_ = self.feat_vecs[idx]
+
+                moa_labels_ = np.array(self.moa_labels)[idx]
+                labels_ = np.array(self.labels)[idx]
+                labels_as_name_ = np.array(self.labels_as_name)[idx]
+
+                dropped_cmpds = self.moa_dict_inv[m_n]
+
+                # Choose one random compound from existing dataset
+                idx_drop = self.index([labels_as_name_], [dropped_cmpds + addtnl_dropped_cmpds_list[m_idx]])
+                feat_vecs_train = feat_vecs_[~idx_drop]
+                labels_train = moa_labels_[~idx_drop]
+
+                X_train, X_test, y_train, y_test = train_test_split(feat_vecs_train, labels_train, test_size=0.1, random_state=42)
+
+                scaler = StandardScaler(with_std=True)
+                X_all = scaler.fit_transform(feat_vecs_)
+                X_train = scaler.transform(X_train)
+                X_test = scaler.transform(X_test)
+
+                clf.fit(X_train)
+
+                for dropped_cmpd_ in dropped_cmpds:
+                    idx_ = self.index([self.moa_id, self.mic_id, self.plate_id], [[m_idx], [4], [rep]])
+                    feat_vecs_ = self.feat_vecs[idx_]
+
+                    labels_as_name_ = np.array(self.labels_as_name)[idx_]
+
+                    X_all = scaler.transform(feat_vecs_)
+
+                    idx_drop_ = self.index([labels_as_name_], [[dropped_cmpd_]])
+
+                    y_pred = clf.decision_function(X_all[idx_drop_])
+
+                    detect_val_tp.append(y_pred)
+
+                for dropped_cmpd_ in addtnl_dropped_cmpds_list[m_idx]:
+                    idx_ = self.index([self.moa_id, self.mic_id, self.plate_id], [[m_idx], [4], [rep]])
+                    feat_vecs_ = self.feat_vecs[idx_]
+
+                    labels_as_name_ = np.array(self.labels_as_name)[idx_]
+
+                    X_all = scaler.transform(feat_vecs_)
+
+                    idx_drop_ = self.index([labels_as_name_], [[dropped_cmpd_]])
+
+                    y_pred = clf.decision_function(X_all[idx_drop_])
+
+                    detect_val_fp.append(y_pred)
+
+                detect_val_tp_all.append(detect_val_tp)
+                detect_val_fp_all.append(detect_val_fp)
+
+            tprs = []
+            aucs = []
+            mean_fpr = np.linspace(0, 1, 100)
+
+            for i, (fp, tp) in enumerate(zip(np.array(detect_val_fp_all).reshape(4,-1), np.array(detect_val_tp_all).reshape(4,-1))):
+                fp = list(-1*fp)
+                tp = list(-1*tp)
+                y_score = np.array(fp + tp)
+                y_true = np.array([0] * len(fp) + [1] * len(tp))
+                fpr, tpr, thresholds = metrics.roc_curve(y_true, y_score)
+                tprs.append(np.interp(mean_fpr, fpr, tpr))
+                roc_auc = metrics.auc(fpr, tpr)
+                aucs.append(roc_auc)
+
+            mean_tpr = np.mean(tprs, axis=0)
+            mean_tpr[-1] = 1.0
+            mean_auc = metrics.auc(mean_fpr, mean_tpr)
+            std_auc = np.std(aucs)
+            ax[ax_i, ax_j].plot(mean_fpr, mean_tpr,
+                     label=f'AUC={mean_auc:0.2f}',
+                     lw=2, alpha=1, color=clr)
+
+            std_tpr = np.std(tprs, axis=0)
+            tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+            tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+            ax[ax_i, ax_j].fill_between(mean_fpr, tprs_lower, tprs_upper, alpha=0.2, color=clr)
+
+
+            ax[ax_i, ax_j].plot([0, 1], [0, 1], linestyle='--', lw=1.5, color='tab:red',alpha=.8) #             label='Random classifier',
+
+            ax[ax_i, ax_j].set_xlim([-0.05, 1.05])
+            ax[ax_i, ax_j].set_ylim([-0.05, 1.05])
+            ax[ax_i, ax_j].set_xlabel('False Positive Rate')
+            ax[ax_i, ax_j].set_ylabel('True Positive Rate')
+            ax[ax_i, ax_j].set_title(f'{m_n}', fontsize=10)
+            ax[ax_i, ax_j].legend(loc="lower right", frameon=False, fontsize=10)
+
+        fig.tight_layout()
+        plt.subplots_adjust(hspace=0.4, wspace=0.4)
+
+        plt.savefig('novelty_detection_roc_curves.svg')
+        plt.show()
+
+    def plot_novelty_score(
+        self
+    ):
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.model_selection import train_test_split
+        from sklearn import metrics
+        from sklearn.neighbors import LocalOutlierFactor
+
+        cmpd_name_list = ['Ciprofloxacin', 'Norfloxacin', 'Levofloxacin', 'Colistin', 'PolymyxinB', 'PenicillinG', 'Cefsulodin', 'Sulbactam', 'Mecillinam', 'Avibactam', 'Meropenem', 'Clavulanate', 'Relebactam', 'Cefepime', 'Ceftriaxone', 'Aztreonam', 'Doxycycline', 'Kanamycin', 'Clarithromycin', 'Chloramphenicol']
+
+        moa_name_list = ['Cell wall (PBP 1)', 'Cell wall (PBP 2)', 'Cell wall (PBP 3)', 'Gyrase', 'Ribosome', 'Membrane integrity']
+
+        addtnl_dropped_cmpds_list = [['Cefsulodin', 'Relebactam', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Relebactam', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Relebactam', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Relebactam', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Relebactam', 'Ceftriaxone']]
+
+
+        clf = LocalOutlierFactor(n_neighbors=9, metric='cosine', novelty=True, p=2)
+
+        detect_val_fp_all = []
+        detect_val_tp_all = []
+        detected_cmpd_name_all = []
+
+        for rep in [0,1,2,3]:
+
+            detect_val_tp = []
+            detected_cmpd_name = []
+            ### Identify outliers in dropped compounds to identify true positives ###
+            detected_outliers = 0
+            num_drugs = 0
+
+            for m_idx, m_n in zip([2,3,4,0,5,1], moa_name_list):
+
+                idx = self.index([self.moa_id, self.mic_id, self.plate_id], [[m_idx], [0,1,2,3,4], [rep]])
+
+                feat_vecs_ = self.feat_vecs[idx]
+
+                moa_labels_ = np.array(self.moa_labels)[idx]
+                labels_ = np.array(self.labels)[idx]
+                labels_as_name_ = np.array(self.labels_as_name)[idx]
+
+                dropped_cmpds = self.moa_dict_inv[m_n]
+
+                idx_drop = self.index([labels_as_name_], [dropped_cmpds + addtnl_dropped_cmpds_list[m_idx]])
+
+                feat_vecs_train = feat_vecs_[~idx_drop]
+                labels_train = moa_labels_[~idx_drop]
+
+                X_train, X_test, y_train, y_test = train_test_split(feat_vecs_train, labels_train, test_size=0.1, random_state=42)
+
+                scaler = StandardScaler()
+                X_all = scaler.fit_transform(feat_vecs_)
+                X_train = scaler.transform(X_train)
+                X_test = scaler.transform(X_test)
+
+                clf.fit(X_train)
+
+                y_pred = clf.predict(X_test)
+
+
+                for dropped_cmpd_ in dropped_cmpds:
+                    idx_ = self.index([self.moa_id, self.mic_id, self.plate_id], [[m_idx], [0,4], [rep]])
+                    feat_vecs_ = self.feat_vecs[idx_]
+                    # feat_vecs_ = pca.transform(feat_vecs[idx_])
+
+                    labels_as_name_ = np.array(self.labels_as_name)[idx_]
+
+                    X_all = scaler.transform(feat_vecs_)
+
+                    idx_drop_ = self.index([labels_as_name_], [[dropped_cmpd_]])
+
+                    y_pred = clf.predict(X_all[idx_drop_])
+
+                    detect_val = list(y_pred).count(-1) / len(list(y_pred))
+
+                    detect_val_tp.append(detect_val)
+                    detected_cmpd_name.append(dropped_cmpd_)
+
+            detect_val_tp_all.append(detect_val_tp)
+            detected_cmpd_name_all.append(detected_cmpd_name)
+
+        detect_val_matrix = np.zeros((4, len(detect_val_tp_all[0])))
+
+        for i in range(4):
+            detect_val_matrix[i,:] = detect_val_tp_all[i]
+
+        plt.figure(figsize=(7,5))
+        clr_list = ['tab:blue'] * 3 + ['tab:orange'] * 5 + ['tab:green'] * 3 + ['tab:red'] * 3 + ['tab:purple'] * 4 +  ['tab:brown'] * 2
+
+        plt.scatter(np.median(detect_val_matrix, axis=0), [i for i in range(20)], marker='D', color=clr_list, s=60, label='MoA not in trainin data')
+        for p in range(4):
+            plt.scatter(detect_val_matrix[p], [i for i in range(20)], alpha=0.25, marker='D', color=clr_list)
+
+        plt.yticks([i for i in range(20)], detected_cmpd_name_all[p], fontsize=12)
+        plt.xticks(fontsize=14)
+        plt.grid('on')
+        plt.xlabel('Novelty probability', fontsize=14)
+        plt.gca().invert_yaxis()
+        plt.title(f'Detecting previously unseen MoA', fontsize=18)
+        plt.savefig('novelty_probability_plot.svg')
+        plt.show()
+
+    def plot_umap(
+        self,
+        selected_moa='Gyrase'
+    ):
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.model_selection import train_test_split
+        from sklearn import metrics
+        from sklearn.neighbors import LocalOutlierFactor
+        import umap
+
+        moa_names = ['Gyrase', 'Membrane integrity', 'Cell wall (PBP 1)', 'Cell wall (PBP 2)', 'Cell wall (PBP 3)', 'Ribosome']
+        moa_idx_ = moa_names.index(selected_moa)
+
+        cmpd_name_list = ['Ciprofloxacin', 'Norfloxacin', 'Levofloxacin', 'Colistin', 'PolymyxinB', 'PenicillinG', 'Cefsulodin', 'Sulbactam', 'Mecillinam', 'Avibactam', 'Meropenem', 'Clavulanate', 'Relebactam', 'Cefepime', 'Ceftriaxone', 'Aztreonam', 'Doxycycline', 'Kanamycin', 'Clarithromycin', 'Chloramphenicol']
+
+        moa_name_list = ['Cell wall (PBP 1)', 'Cell wall (PBP 2)', 'Cell wall (PBP 3)', 'Gyrase', 'Ribosome', 'Membrane integrity']
+
+        addtnl_dropped_cmpds_list = [['Cefsulodin', 'Relebactam', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Relebactam', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Relebactam', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Ceftriaxone', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Relebactam', 'Doxycycline'],
+                                     ['Ciprofloxacin', 'Cefsulodin', 'Relebactam', 'Ceftriaxone']]
+
+
+        clf = LocalOutlierFactor(n_neighbors=9, metric='cosine', novelty=True, p=2)
+
+        detect_val_fp_all = []
+        detect_val_tp_all = []
+        detected_cmpd_name_all = []
+
+
+        for rep in [1]:
+
+            detect_val_tp = []
+            detected_cmpd_name = []
+            detected_outliers = 0
+            num_drugs = 0
+
+            for m_idx, m_n in zip([moa_idx_], [selected_moa]):
+
+                idx = self.index([self.moa_id, self.mic_id, self.plate_id], [[m_idx], [0,1,2,3,4], [rep]])
+
+                feat_vecs_ = self.feat_vecs[idx]
+
+                moa_labels_ = np.array(self.moa_labels)[idx]
+                labels_ = np.array(self.labels)[idx]
+                labels_as_name_ = np.array(self.labels_as_name)[idx]
+
+                dropped_cmpds = self.moa_dict_inv[m_n]
+
+                idx_drop = self.index([labels_as_name_], [dropped_cmpds + addtnl_dropped_cmpds_list[m_idx]])
+
+                feat_vecs_train = feat_vecs_[~idx_drop]
+                labels_train = moa_labels_[~idx_drop]
+
+                X_train, X_test, y_train, y_test = train_test_split(feat_vecs_train, labels_train, test_size=0.1, random_state=42)
+
+                scaler = StandardScaler()
+                X_all = scaler.fit_transform(feat_vecs_)
+                X_train = scaler.transform(X_train)
+                X_test = scaler.transform(X_test)
+
+                clf.fit(X_train)
+
+                y_pred = clf.predict(X_test)
+
+                for dropped_cmpd_ in dropped_cmpds:
+                    idx_ = self.index([self.moa_id, self.mic_id, self.plate_id], [[m_idx], [0,4], [rep]])
+                    feat_vecs_ = self.feat_vecs[idx_]
+
+                    labels_as_name_ = np.array(self.labels_as_name)[idx_]
+
+                    X_all_ = scaler.transform(feat_vecs_)
+
+                    idx_drop_ = self.index([labels_as_name_], [[dropped_cmpd_]])
+
+                    y_pred = clf.predict(X_all_[idx_drop_])
+
+                    detect_val = list(y_pred).count(-1) / len(list(y_pred))
+
+                    detect_val_tp.append(detect_val)
+                    detected_cmpd_name.append(dropped_cmpd_)
+
+            detect_val_tp_all.append(detect_val_tp)
+            detected_cmpd_name_all.append(detected_cmpd_name)
+
+        umap_ = umap.UMAP(n_components=2, random_state=1, n_neighbors=25, min_dist=0.3, metric='cosine')
+        X = umap_.fit_transform(X_all)
+
+        plt.figure(figsize=(6,6))
+
+        moa_classes = ['Control', 'Cell wall (PBP 1)', 'Cell wall (PBP 2)' 'Cell wall (PBP 3)', 'Gyrase', 'Membrane integrity', 'RNA polymerase', 'DNA synthesis']
+
+        for m_idx, m_n, clr in zip([i for i in [0,1,2,3,4,6,7,8] if i not in [self.moa_to_num[selected_moa]]], self.moa_classes, ['gainsboro', 'tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive']):
+
+            idx_ref = self.index([np.array(self.moa_labels)[idx], np.array(self.mic_id)[idx], np.array(self.plate_id)[idx]], [[m_idx], [0,1,2,3,4], [1]])
+            X_ref = X[idx_ref]
+            plt.scatter(X_ref[:,0], X_ref[:,1], color='tab:grey', alpha=0.2)
+
+
+        idx_moa_drop = self.index([np.array(self.moa_labels)[idx], np.array(self.mic_id)[idx], np.array(self.plate_id)[idx]], [[self.moa_to_num[selected_moa]], [0,4], [1]])
+
+        X_scores = clf.score_samples(X_all)[idx_moa_drop]
+        radius = (X_scores.max() - X_scores) / (X_scores.max() - X_scores.min())
+
+        X_moa_drop = X[idx_moa_drop]
+
+        plt.scatter(X_moa_drop[:,0], X_moa_drop[:,1], color='tab:purple', alpha=1, label=f'{selected_moa} (unseen)', marker='*', s=100, edgecolor='black', linewidth=1)
+
+        scatter = plt.scatter(
+            X_moa_drop[:, 0],
+            X_moa_drop[:, 1],
+            s=2000 * radius,
+            edgecolors="tab:red",
+            facecolors="none",
+            linestyle='solid',
+            label="Outlier scores",
+            alpha=0.2
+        )
+
+        idx_neg_ctrl = self.index([np.array(self.labels_as_name)[idx], np.array(self.mic_id)[idx], np.array(self.plate_id)[idx]], [addtnl_dropped_cmpds_list[moa_idx_], [0,4], [1]])
+
+        X_scores = clf.score_samples(X_all)[idx_neg_ctrl]
+        radius = (X_scores.max() - X_scores) / (X_scores.max() - X_scores.min())
+
+        X_neg_ctrl = X[idx_neg_ctrl]
+
+        plt.scatter(X_neg_ctrl[:,0], X_neg_ctrl[:,1], color='tab:grey', alpha=0.75, label='Negative control', marker='p', s=75, edgecolor='black', linewidth=1)
+
+        scatter = plt.scatter(
+            X_neg_ctrl[:, 0],
+            X_neg_ctrl[:, 1],
+            s=2000 * radius,
+            edgecolors="tab:blue",
+            facecolors="none",
+            linestyle='solid',
+            label="Outlier scores",
+            alpha=0.2
+        )
+
+        plt.xticks([])
+        plt.yticks([])
+        plt.title(selected_moa, fontsize=18)
+        plt.savefig('lof_plot_ribo.svg')
+
+        plt.show()
