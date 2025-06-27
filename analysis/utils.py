@@ -90,7 +90,7 @@ class DataLoader:
                 plate_id.append(np.ones_like(labels_) * p_id)
                 channel_id.append(np.ones_like(labels_) * ch_id)
 
-        self.feat_vecs = np.vstack(test_outputs)
+        self.feat_vecs = np.vstack(feat_vecs)
         self.labels = np.hstack(labels)
         self.preds = np.hstack(preds)
         self.test_outputs = np.vstack(test_outputs)
@@ -726,7 +726,7 @@ class ResultsPlotter:
 
     def _detection_threshold(
         self,
-        plate=2,
+        plate=1,
         sigma=3
     ):
         from scipy import spatial
@@ -783,6 +783,51 @@ class ResultsPlotter:
         plt.yticks([i for i in range(5,21,5)], [i for i in range(5,21,5)], fontsize=16)
         plt.legend()
         plt.savefig('drug_detections_e_coli.svg', dpi=300)
+
+    def plot_cosine_distance_to_control(
+        self,
+        plate=1,
+        sigma=3
+    ):
+        from scipy import spatial
+        moa_list = ['Control', 'Cell wall (PBP 1)', 'Cell wall (PBP 2)', 'Cell wall (PBP 3)', 'Cell wall (beta-lac inhib)', 'Gyrase', 'Ribosome', 'Membrane integrity', 'RNA polymerase', 'DNA synthesis']
+        colour_list = ['gainsboro', 'tab:blue', 'tab:orange', 'tab:green', 'tab:cyan', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:olive']
+
+        colour_dict = dict(zip(moa_list, colour_list))
+
+        plt.figure(figsize=(7,5))
+        for moa in [m for m in self.moa_classes if m not in ['Control']]:
+            cosine_dist_cmpds = []
+            for cmpd in self.moa_dict_inv[moa]:
+                cosine_dist = []
+                for d in [1,2,3,4]:
+                    feat_vecs_idx =  self.index([self.plate_id, self.mic_id, self.labels_as_name], [[plate], [d], [cmpd]])
+                    feat_vecs_idx_ctrl =  self.index([self.plate_id, self.labels_as_name], [[plate], ['DMSO']])
+                    cosine_dist_ = spatial.distance.cosine(np.median(self.feat_vecs[feat_vecs_idx], axis=0), np.median(self.feat_vecs[feat_vecs_idx_ctrl], axis=0))
+                    cosine_dist.append(cosine_dist_)
+
+                cosine_dist_cmpds.append(cosine_dist)
+            cosine_dist_cmpds = np.array(cosine_dist_cmpds)
+            plt.plot([1,2,3,4], cosine_dist_cmpds.mean(axis=0), 'o--', linewidth=2, label=moa, c=colour_dict[moa])
+            plt.fill_between([1,2,3,4], cosine_dist_cmpds.mean(axis=0) - cosine_dist_cmpds.std(axis=0), cosine_dist_cmpds.mean(axis=0) + cosine_dist_cmpds.std(axis=0), alpha=0.1, color=colour_dict[moa])
+
+        # idx_ctrl =  self.index([self.plate_id, self.labels_as_name], [[plate], ['DMSO']])
+        # median_ctrl_vec = np.median(self.feat_vecs[idx_ctrl], axis=0)
+        # ctrl_distances = []
+        # for vec in self.feat_vecs[idx_ctrl]:
+        #     ctrl_distances.append(spatial.distance.cosine(vec, median_ctrl_vec))
+        detection_threshold = self._detection_threshold(plate=plate, sigma=sigma)
+
+        # detection_threshold = np.mean(ctrl_distances) + 3 * np.std(ctrl_distances)
+        plt.hlines(detection_threshold, 1, 4, color='red', linestyle='solid', linewidth=3, label='Detection threshold', alpha=0.5)
+
+        plt.xticks([1,2,3,4], ['0.125', '0.25', '0.5', '1'], fontsize=16)
+        plt.ylim([0.,1])
+        plt.ylabel('Mean cosine distance to DMSO', fontsize=16)
+        plt.xlabel('Antibiotic concentration (x IC50)', fontsize=16)
+        plt.title('Cosine distance to DMSO for E. coli', fontsize=18)
+        plt.legend()
+        plt.savefig('cosine_distance_by_tgt_ecoli.svg', dpi=300)
 
     def plot_roc_curve(
         self,
