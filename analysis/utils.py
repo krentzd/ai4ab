@@ -1188,7 +1188,7 @@ class LOCODataLoader:
                 plate_id.append(np.ones_like(labels_) * p_id)
                 compound_id.append(np.ones_like(labels_) * cmpd_id)
 
-        self.feat_vecs = np.vstack(test_outputs)
+        self.feat_vecs = np.vstack(feat_vecs)
         self.labels = np.hstack(labels)
         self.preds = np.hstack(preds)
         self.test_outputs = np.vstack(test_outputs)
@@ -1202,7 +1202,7 @@ class LOCODataLoader:
         params_dir
     ):
         d = []
-        for l in ['moa_dict', 'dose_dict', 'classes', 'moa_classes', 'labels_srtd_by_moa', 'moa_labels_srtd']:
+        for l in ['moa_dict', 'moa_dict_inv', 'dose_dict', 'classes', 'moa_classes', 'labels_srtd_by_moa', 'moa_labels_srtd']:
             with open(os.path.join(params_dir, f'{l}.json'), 'r') as f:
                 d.append(json.load(f))
         return tuple(d)
@@ -1211,7 +1211,7 @@ class LOCODataLoader:
         self,
         params_dir
     ):
-        self.moa_dict, self.dose_dict, self.classes, self.moa_classes, self.labels_srtd_by_moa, self.moa_labels_srtd = self._load_labels_from_specs(params_dir)
+        self.moa_dict, self.moa_dict_inv, self.dose_dict, self.classes, self.moa_classes, self.labels_srtd_by_moa, self.moa_labels_srtd = self._load_labels_from_specs(params_dir)
 
         self.moa_dict_w_dose = {k: (v, self.dose_dict[k.split('_')[1]] if k not in ['DMSO'] else 0) for k, v in self.moa_dict.items()}
         self.moa_to_num = dict(zip(self.moa_classes, [i for i in range(len(self.moa_classes))]))
@@ -1224,3 +1224,287 @@ class LOCODataLoader:
 
         self.labels_as_name = [self.label_to_name[l].split('_')[0] for l in self.labels]
         self.moa_labels_as_name = [[self.moa_dict_w_dose[self.label_to_name[l]][0]][0] for l in self.labels]
+
+class LOCOPlotter:
+    def __init__(
+        self,
+        loader
+    ):
+        self.feat_vecs = loader.feat_vecs
+        self.labels = loader.labels
+        self.moa_dict = loader.moa_dict
+        self.plate_id = loader.plate_id
+        self.compound_id = loader.compound_id
+        self.mic_id = loader.mic_id
+        self.test_outputs = loader.test_outputs
+        self.classes = loader.classes
+        self.moa_dict_w_dose = loader.moa_dict_w_dose
+        self.cmpd_names = loader.cmpd_names
+        self.label_to_name = loader.label_to_name
+        self.moa_to_num = loader.moa_to_num
+        self.moa_classes = loader.moa_classes
+        self.moa_dict_inv = loader.moa_dict_inv
+        self.colour_list = ['gainsboro', 'tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:olive']
+
+    def index(
+        self,
+        input_maps,
+        input_choices
+    ):
+        "Returns boolean list to index array"
+        idx_list_ = []
+        for maps, choices in zip(input_maps, input_choices):
+            idx_list_.append(np.logical_or.reduce([np.array(maps) == c for c in choices]))
+
+        return np.logical_and.reduce(idx_list_)
+
+    def _knn_clf(
+        self,
+        k=150,
+        metric='cosine'
+    ):
+        from sklearn.neighbors import KNeighborsClassifier
+        from sklearn.preprocessing import StandardScaler
+        from collections import Counter
+        from sklearn import metrics
+
+        cmpd_names_ = [c for c in self.cmpd_names[:-2] if c not in ['Colistin', 'PolymyxinB']]
+        acc_dict = dict()
+        moa_pred_dict = dict()
+        for p_id in [0,1,2,3]:
+            for conc in ['0.125xIC50', '0.25xIC50', '0.5xIC50', '1xIC50']:
+                for cmpd_id, cmpd_name in zip([self.cmpd_names.index(c) for c in cmpd_names_], cmpd_names_):
+                    idx_list_drop = self.index([self.compound_id, self.labels, self.plate_id], [[self.cmpd_names.index(cmpd_name)], [self.classes.index(f'{cmpd_name}_{conc}')], [p_id]])
+                    idx_list_train = self.index([self.compound_id, self.labels, self.plate_id], [[cmpd_id], [self.classes.index(f'{c}_{conc}') for c in self.cmpd_names if c not in [cmpd_name]], [p_id]])
+
+                    feat_vecs_drop = self.feat_vecs[idx_list_drop]
+
+                    feat_vecs_train = self.feat_vecs[idx_list_train]
+
+                    scaler = StandardScaler(with_std=False)
+                    feat_vecs_train = scaler.fit_transform(feat_vecs_train)
+                    feat_vecs_drop = scaler.transform(feat_vecs_drop)
+
+                    labels_drop = [self.label_to_name[l] for l in self.labels[idx_list_drop]]
+                    moa_labels_drop = [self.moa_dict_w_dose[l][0] for l in labels_drop]
+
+                    labels_train = [self.label_to_name[l] for l in self.labels[idx_list_train]]
+                    moa_labels_train = [self.moa_dict_w_dose[l][0] for l in labels_train]
+
+                    clf = KNeighborsClassifier(n_neighbors=k, metric=metric, weights='distance').fit(feat_vecs_train, moa_labels_train)
+
+                    moa_labels_drop_hat = clf.predict(feat_vecs_drop)
+
+                    cntr_labels = Counter(moa_labels_drop)
+                    mc_labels = cntr_labels.most_common(1)[0][0]
+
+                    cntr_preds = Counter(moa_labels_drop_hat)
+                    mc_preds = cntr_preds.most_common(1)[0][0]
+
+                    moa_hat_as_num = [self.moa_to_num[m] for m in moa_labels_drop_hat]
+                    moa_gt_as_num = [self.moa_to_num[m] for m in moa_labels_drop]
+
+                    qk = [self.moa_to_num[mc_preds]] * len(moa_labels_drop_hat)
+
+                    acc_dict[p_id, conc, cmpd_name] = metrics.accuracy_score([mc_labels], [mc_preds])
+                    moa_pred_dict[p_id, cmpd_name] = mc_preds
+
+        return acc_dict, moa_pred_dict
+
+    def plot_accuracy(
+        self,
+        save_name='loco_accuracy.svg'
+    ):
+        acc_dict, __ = self._knn_clf()
+        pbp1 = ['Cefsulodin', 'PenicillinG', 'Sulbactam']
+        pbp2 = ['Avibactam', 'Mecillinam', 'Meropenem', 'Relebactam', 'Clavulanate']
+        pbp3 = ['Aztreonam', 'Ceftriaxone', 'Cefepime']
+        gyr = ['Ciprofloxacin', 'Levofloxacin', 'Norfloxacin']
+        rib = ['Doxycycline', 'Kanamycin', 'Chloramphenicol', 'Clarithromycin']
+        mem = ['Colistin', 'PolymyxinB']
+
+        data_knn_150 = []
+        for conc in ['0.125xIC50', '0.25xIC50', '0.5xIC50', '1xIC50']:
+            data_ = []
+            for cmpds in [pbp1, pbp2, pbp3, gyr, rib]:
+                data_.append([np.mean([acc_dict[p_id, conc, cmpd] for cmpd in cmpds]) for p_id in [0,1,2,3]])
+
+            data_knn_150.append(data_)
+        data_knn_150 = np.array(data_knn_150)
+
+        plt.figure(figsize=(7,5))
+        for m, i in zip(['Cell wall (PBP 1)', 'Cell wall (PBP 2)', 'Cell wall (PBP 3)', 'Gyrase', 'Ribosome'], range(5)):
+            mean_vals = np.array([np.mean(data_knn_150[x,i,:]) for x in range(4)])
+            std_vals = np.array([np.std(data_knn_150[x,i,:]) for x in range(4)])
+            plt.plot(mean_vals, 'o--', linewidth=2, label=m)
+            plt.fill_between([i for i in range(4)], mean_vals-std_vals, mean_vals+std_vals, alpha=0.1, edgecolor='grey')
+
+        plt.xticks([0,1,2,3], ['0.125', '0.25', '0.5', '1'], fontsize=16)
+        plt.yticks(fontsize=16)
+        plt.xlabel('Antibiotic concentration (x IC50)', fontsize=16)
+        plt.ylabel('LOCO accuracy', fontsize=16)
+        plt.title('k-NN LOCO accuracy', fontsize=18)
+        plt.legend(frameon=True, fontsize=12)
+        plt.savefig(save_name)
+        plt.show()
+
+    def plot_moa_predictions(
+        self,
+        save_name='loco_knn_150_preds.svg'
+    ):
+        acc_dict, __ = self._knn_clf()
+
+        pbp1 = ['Cefsulodin', 'PenicillinG', 'Sulbactam']
+        pbp2 = ['Avibactam', 'Mecillinam', 'Meropenem', 'Relebactam', 'Clavulanate']
+        pbp3 = ['Aztreonam', 'Ceftriaxone', 'Cefepime']
+        gyr = ['Ciprofloxacin', 'Levofloxacin', 'Norfloxacin']
+        rib = ['Doxycycline', 'Kanamycin', 'Chloramphenicol', 'Clarithromycin']
+
+        data = []
+        for conc in ['0.125xIC50', '0.25xIC50', '0.5xIC50', '1xIC50']:
+            data_ = []
+            for cmpds in [pbp1, pbp2, pbp3, gyr, rib]:
+                data_.append([np.sum([acc_dict[p_id, conc, cmpd] for cmpd in cmpds]) for p_id in [0,1,2,3]])
+            data.append(data_)
+        data = np.array(data)
+
+        plt.figure(figsize=(7,5))
+        plt.bar([x-0.3 for x in range(5)], data[3,:,0], width=0.2, label='Plate 1', color='tab:blue')
+        plt.bar([x-0.1 for x in range(5)], data[3,:,1], width=0.2, label='Plate 2', color='tab:orange')
+        plt.bar([x+0.1 for x in range(5)], data[3,:,2], width=0.2, label='Plate 3', color='tab:green')
+        plt.bar([x+0.3 for x in range(5)], data[3,:,3], width=0.2, label='Plate 4', color='tab:red')
+        plt.legend()
+        xtick_classes = ['PBP 1', 'PBP 2', 'PBP 3', 'Gyrase', 'Ribosome']
+        plt.xticks([i for i in range(5)], xtick_classes, rotation=90, fontsize=16)
+        plt.ylabel('Correctly assigned drugs', fontsize=16)
+        for y_, x_ in zip([3, 5, 3, 3, 4], [0, 1, 2, 3, 4]):
+            plt.hlines(y_, x_-0.4, x_+0.4, colors='black', linestyles='solid', label='Perfect' if y_ == 3 and x_ == 0 else None)
+        plt.yticks(fontsize=16)
+        plt.legend(frameon=True, fontsize=12)
+        plt.title('k-NN predictions (1xIC50)', fontsize=18)
+        plt.savefig(save_name)
+        plt.show()
+
+    def plot_compound_predictions(
+        self,
+        compounds=None,
+        plate=0,
+        concentration='1xIC50',
+        k=150,
+        metric='cosine'
+    ):
+        from sklearn.preprocessing import StandardScaler
+        from collections import Counter
+        from sklearn import metrics
+        from sklearn.neighbors import KNeighborsClassifier
+
+        if not compounds:
+            cmpd_names_ = [c for c in self.cmpd_names[:-2]]
+        else:
+            cmpd_names_ = compounds
+        # if c not in ['Clavulanate', 'Sulbactam', 'Relebactam']]
+
+        moa_list = self.moa_classes #['Control', 'Cell wall (PBP 1)', 'Cell wall (PBP 2)', 'Cell wall (PBP 3)', 'Gyrase', 'Ribosome', 'Membrane integrity', 'RNA polymerase', 'DNA synthesis']
+
+        colour_dict = dict(zip(moa_list, self.colour_list))
+
+        p_id = plate
+        conc = concentration
+        for cmpd_id, cmpd_name in zip([self.cmpd_names.index(c) for c in cmpd_names_], cmpd_names_):
+            classes_ = [c for c in self.classes if c not in [f'{cmpd_name}_{d}' for d in ['0.125xIC50', '0.25xIC50', '0.5xIC50', '1xIC50']]]
+
+            label_to_name_ = dict(zip([i for i in range(len(classes_))], classes_))
+
+            idx_list_drop = self.index([self.compound_id, self.labels, self.plate_id], [[cmpd_id], [self.classes.index(f'{cmpd_name}_{conc}')], [p_id]])
+            idx_list_train = self.index([self.compound_id, self.labels, self.plate_id], [[cmpd_id], [self.classes.index(f'{c}_{conc}') for c in self.cmpd_names if c not in [cmpd_name]], [p_id]])
+
+            feat_vecs_drop = self.feat_vecs[idx_list_drop]
+            feat_vecs_train = self.feat_vecs[idx_list_train]
+
+            scaler = StandardScaler(with_std=False)
+            feat_vecs_train = scaler.fit_transform(feat_vecs_train)
+            feat_vecs_drop = scaler.transform(feat_vecs_drop)
+
+            labels_drop = [self.label_to_name[l] for l in self.labels[idx_list_drop]]
+            moa_labels_drop = [self.moa_dict_w_dose[l][0] for l in labels_drop]
+
+            labels_train = [self.label_to_name[l] for l in self.labels[idx_list_train]]
+            moa_labels_train = [self.moa_dict_w_dose[l][0] for l in labels_train]
+
+            clf = KNeighborsClassifier(n_neighbors=k, metric=metric, weights='distance').fit(feat_vecs_train, labels_train)
+
+            moa_labels_drop_hat = clf.predict(feat_vecs_drop)
+
+            cntr_labels = Counter(moa_labels_drop)
+            mc_labels = cntr_labels.most_common(1)[0][0]
+
+            cntr_preds = Counter(moa_labels_drop_hat)
+            mc_preds = cntr_preds.most_common(1)[0][0]
+
+            print(mc_labels, mc_preds, metrics.accuracy_score([mc_labels], [mc_preds]))
+
+            plt.figure(figsize=(2,1.5))
+            bar_labels_ = [x[0] for x in cntr_preds.most_common(2)]
+            bar_labels = [x.split('_')[0] for x in bar_labels_] + [''] * (2 - len(bar_labels_)) + ['Other']
+            bar_vals_ = [x[1] for x in cntr_preds.most_common(2)]
+            bar_vals = [x for x in bar_vals_] + [0] * (2 - len(bar_vals_))
+            other_val = 50 - np.sum(bar_vals)
+            bar_vals = bar_vals + [other_val]
+            print(bar_vals)
+            plt.title(f'{cmpd_name}')
+            bar = plt.barh([0,1,2], bar_vals)
+
+            for b_id, c_n in enumerate(bar_labels_):
+                m_n = self.moa_dict_w_dose[c_n][0]
+                col_n = colour_dict[m_n]
+                bar[b_id].set_color(col_n)
+
+            bar[-1].set_color('tab:grey')
+            plt.yticks([0,1,2], bar_labels)
+            plt.xlabel('Number of FOV')
+            # plt.ylabel('Nearest neighbours')
+            plt.xticks([0,10,20,30,40,50])
+            plt.xlim([0,50])
+            plt.gca().invert_yaxis()
+            # plt.savefig(f'knn_preds_plate_3_150nn_{cmpd_name}.svg')
+            plt.show()
+            # acc_score = metrics.accuracy_score(moa_labels_drop, moa_labels_drop_hat)
+            # acc_score = metric.accuracy_score([mc_labels], [mc_preds])
+
+    def plot_prediction_matrix(
+        self
+    ):
+        from matplotlib.colors import ListedColormap
+        # import matplotlib.colors as colors
+
+        __, moa_pred_dict = self._knn_clf()
+
+        cmpd_names_ = ['Cefsulodin', 'PenicillinG', 'Sulbactam', 'Avibactam', 'Mecillinam', 'Meropenem', 'Clavulanate', 'Relebactam', 'Aztreonam', 'Ceftriaxone', 'Cefepime', 'Ciprofloxacin', 'Levofloxacin', 'Norfloxacin', 'Doxycycline', 'Kanamycin', 'Chloramphenicol', 'Clarithromycin']#, 'Colistin', 'PolymyxinB']
+        moa_to_num_dict = dict(zip(self.moa_classes, [i for i in range(len(self.moa_classes))]))
+        colour_dict = dict(zip(self.moa_classes, self.colour_list))
+
+        moa_to_num_dict = dict(zip(self.moa_classes, [i for i in range(len(self.moa_classes))]))
+
+        for m_n in ['Cell wall (PBP 1)', 'Cell wall (PBP 2)', 'Cell wall (PBP 3)', 'Gyrase', 'Ribosome']:
+            moa_pred_matrix = np.empty((4, len(self.moa_dict_inv[m_n])))
+
+            for i in range(4):
+                for j, cn in enumerate(self.moa_dict_inv[m_n]):
+                    moa_pred_matrix[i,j] = moa_to_num_dict[moa_pred_dict[i, cn]]
+
+            fig, ax = plt.subplots(figsize=(len(self.moa_dict_inv[m_n]) / 2, 2))
+
+            cmap_names = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:olive']
+
+            cmap = ListedColormap([cmap_names[int(i)-1] for i in list(np.unique(moa_pred_matrix))])
+
+            ax.pcolormesh(moa_pred_matrix, cmap=cmap, edgecolors='k', linewidth=1)
+            ax.set_aspect(1)
+            ax.invert_yaxis()
+            # plt.grid()
+            plt.xticks([i+0.5 for i in range(len(self.moa_dict_inv[m_n]))], self.moa_dict_inv[m_n], rotation=90)
+            plt.yticks([i+0.5 for i in range(4)], [f'Plate {i+1}' for i in range(4)])
+            plt.tick_params(axis='both', which='major', labelsize=10, labelbottom=True, bottom=True, top=False, labeltop=False)
+            ax.set_title(f'{m_n}', fontsize=11)
+            # plt.savefig(f'loco_preds_across_plates_{m_n}.svg')
+            plt.show()
