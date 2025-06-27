@@ -742,7 +742,7 @@ class ResultsPlotter:
 
     def plot_drug_exposure_detection(
         self,
-        plate=2,
+        plate=1,
         sigma=3,
         save_name='drug_detections_e_coli.svg'
     ):
