@@ -190,7 +190,6 @@ class ResultsPlotter:
     ):
         from matplotlib.ticker import MultipleLocator
 
-        # Sort label indices by sorted labels
         if label_name == 'compound':
             label_dict = dict(zip([i for i in range(len(classes_true))], [self.labels_srtd_by_moa.index(c) for c in classes_true]))
             labels = [label_dict[l] for l in labels]
@@ -305,7 +304,6 @@ class ResultsPlotter:
         cond_labels = [cond_labels_dict[l] for l in self.labels[idx_list]]
         cond_preds = [p.argmax() for p in self.p_conditional(dose, channel, plate)[0]]
 
-        # moa_cond_dict = {k: moa_reduced_dict[v] if v in moa_reduced_dict.keys() else v for k, v in moa_dict.items()}
         moa_cond_dict = {k: v for k, v in self.moa_dict.items()}
 
         moa_cond_labels = [moa_cond_dict[cond_classes[l]] for l in cond_labels]
@@ -498,7 +496,6 @@ class ResultsPlotter:
         labels_as_name_srtd_ = sorted([l for l in labels_as_name_srtd[:23]])
 
         if use_moa_labels:
-            # moa_list = ['Control', 'Cell wall (PBP 1)', 'Cell wall (PBP 2)', 'Cell wall (PBP 3)', 'Gyrase', 'Ribosome', 'Membrane integrity', 'RNA polymerase', 'DNA synthesis']
             colour_list = ['black', 'tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:olive']
 
             colour_dict = dict(zip(self.moa_classes, colour_list))
@@ -530,7 +527,6 @@ class ResultsPlotter:
         else:
             for d in [1,2,3,4]:
                 plt.figure(figsize=(5,5))
-                # idx = self.index([labels_as_name_srtd_no_med, dose_labels_no_med], [[l], [d]])
                 idx = self.index([dose_labels_no_med], [[d]])
 
                 plt.scatter(X_no_med[~idx][:,0], X_no_med[~idx][:,1], s=50, alpha=0.025, c='grey')
@@ -637,7 +633,6 @@ class ResultsPlotter:
         cond_labels = [cond_labels_dict[l] for l in self.labels[idx_list]]
         cond_preds = [p.argmax() for p in self.p_conditional(dose, channel, plate)[0]]
 
-        # moa_cond_dict = {k: moa_reduced_dict[v] if v in moa_reduced_dict.keys() else v for k, v in moa_dict.items()}
         moa_cond_dict = {k: v for k, v in self.moa_dict.items()}
 
         moa_cond_labels = [moa_cond_dict[cond_classes[l]] for l in cond_labels]
@@ -719,7 +714,6 @@ class ResultsPlotter:
                                   markerfacecolor='black', markersize=10),
                            ]
 
-        # Create the figure
         plt.legend(handles=legend_elements, frameon=False)
         plt.savefig(save_name)
         plt.show()
@@ -811,14 +805,8 @@ class ResultsPlotter:
             plt.plot([1,2,3,4], cosine_dist_cmpds.mean(axis=0), 'o--', linewidth=2, label=moa, c=colour_dict[moa])
             plt.fill_between([1,2,3,4], cosine_dist_cmpds.mean(axis=0) - cosine_dist_cmpds.std(axis=0), cosine_dist_cmpds.mean(axis=0) + cosine_dist_cmpds.std(axis=0), alpha=0.1, color=colour_dict[moa])
 
-        # idx_ctrl =  self.index([self.plate_id, self.labels_as_name], [[plate], ['DMSO']])
-        # median_ctrl_vec = np.median(self.feat_vecs[idx_ctrl], axis=0)
-        # ctrl_distances = []
-        # for vec in self.feat_vecs[idx_ctrl]:
-        #     ctrl_distances.append(spatial.distance.cosine(vec, median_ctrl_vec))
         detection_threshold = self._detection_threshold(plate=plate, sigma=sigma)
 
-        # detection_threshold = np.mean(ctrl_distances) + 3 * np.std(ctrl_distances)
         plt.hlines(detection_threshold, 1, 4, color='red', linestyle='solid', linewidth=3, label='Detection threshold', alpha=0.5)
 
         plt.xticks([1,2,3,4], ['0.125', '0.25', '0.5', '1'], fontsize=16)
@@ -896,7 +884,7 @@ class ResultsPlotter:
             std_tpr = np.std(tprs, axis=0)
             tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
             tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
-            plt.fill_between(mean_fpr, tprs_lower, tprs_upper, alpha=0.2) #label=r'$\pm$ 1 std. dev.')
+            plt.fill_between(mean_fpr, tprs_lower, tprs_upper, alpha=0.2)
 
         plt.plot([0, 1], [0, 1], linestyle='--', lw=1.5, color='tab:red',
                  label='Random classifier', alpha=.8)
@@ -1446,9 +1434,8 @@ class LOCOPlotter:
             cmpd_names_ = [c for c in self.cmpd_names[:-2]]
         else:
             cmpd_names_ = compounds
-        # if c not in ['Clavulanate', 'Sulbactam', 'Relebactam']]
 
-        moa_list = self.moa_classes #['Control', 'Cell wall (PBP 1)', 'Cell wall (PBP 2)', 'Cell wall (PBP 3)', 'Gyrase', 'Ribosome', 'Membrane integrity', 'RNA polymerase', 'DNA synthesis']
+        moa_list = self.moa_classes
 
         colour_dict = dict(zip(moa_list, self.colour_list))
 
@@ -1506,24 +1493,19 @@ class LOCOPlotter:
             bar[-1].set_color('tab:grey')
             plt.yticks([0,1,2], bar_labels)
             plt.xlabel('Number of FOV')
-            # plt.ylabel('Nearest neighbours')
             plt.xticks([0,10,20,30,40,50])
             plt.xlim([0,50])
             plt.gca().invert_yaxis()
-            # plt.savefig(f'knn_preds_plate_3_150nn_{cmpd_name}.svg')
             plt.show()
-            # acc_score = metrics.accuracy_score(moa_labels_drop, moa_labels_drop_hat)
-            # acc_score = metric.accuracy_score([mc_labels], [mc_preds])
 
     def plot_prediction_matrix(
         self
     ):
         from matplotlib.colors import ListedColormap
-        # import matplotlib.colors as colors
 
         __, moa_pred_dict = self._knn_clf()
 
-        cmpd_names_ = ['Cefsulodin', 'PenicillinG', 'Sulbactam', 'Avibactam', 'Mecillinam', 'Meropenem', 'Clavulanate', 'Relebactam', 'Aztreonam', 'Ceftriaxone', 'Cefepime', 'Ciprofloxacin', 'Levofloxacin', 'Norfloxacin', 'Doxycycline', 'Kanamycin', 'Chloramphenicol', 'Clarithromycin']#, 'Colistin', 'PolymyxinB']
+        cmpd_names_ = ['Cefsulodin', 'PenicillinG', 'Sulbactam', 'Avibactam', 'Mecillinam', 'Meropenem', 'Clavulanate', 'Relebactam', 'Aztreonam', 'Ceftriaxone', 'Cefepime', 'Ciprofloxacin', 'Levofloxacin', 'Norfloxacin', 'Doxycycline', 'Kanamycin', 'Chloramphenicol', 'Clarithromycin']
         moa_to_num_dict = dict(zip(self.moa_classes, [i for i in range(len(self.moa_classes))]))
         colour_dict = dict(zip(self.moa_classes, self.colour_list))
 
@@ -1545,12 +1527,10 @@ class LOCOPlotter:
             ax.pcolormesh(moa_pred_matrix, cmap=cmap, edgecolors='k', linewidth=1)
             ax.set_aspect(1)
             ax.invert_yaxis()
-            # plt.grid()
             plt.xticks([i+0.5 for i in range(len(self.moa_dict_inv[m_n]))], self.moa_dict_inv[m_n], rotation=90)
             plt.yticks([i+0.5 for i in range(4)], [f'Plate {i+1}' for i in range(4)])
             plt.tick_params(axis='both', which='major', labelsize=10, labelbottom=True, bottom=True, top=False, labeltop=False)
             ax.set_title(f'{m_n}', fontsize=11)
-            # plt.savefig(f'loco_preds_across_plates_{m_n}.svg')
             plt.show()
 
 class LOMODataLoader:
@@ -1692,7 +1672,6 @@ class LOMOPlotter:
 
             detect_val_fp_all = []
             detect_val_tp_all = []
-            ### Identify outliers in dropped compounds to identify true positives ###
             detected_outliers = 0
             num_drugs = 0
 
@@ -1710,7 +1689,6 @@ class LOMOPlotter:
 
                 dropped_cmpds = self.moa_dict_inv[m_n]
 
-                # Choose one random compound from existing dataset
                 idx_drop = self.index([labels_as_name_], [dropped_cmpds + addtnl_dropped_cmpds_list[m_idx]])
                 feat_vecs_train = feat_vecs_[~idx_drop]
                 labels_train = moa_labels_[~idx_drop]
@@ -1783,7 +1761,7 @@ class LOMOPlotter:
             ax[ax_i, ax_j].fill_between(mean_fpr, tprs_lower, tprs_upper, alpha=0.2, color=clr)
 
 
-            ax[ax_i, ax_j].plot([0, 1], [0, 1], linestyle='--', lw=1.5, color='tab:red',alpha=.8) #             label='Random classifier',
+            ax[ax_i, ax_j].plot([0, 1], [0, 1], linestyle='--', lw=1.5, color='tab:red',alpha=.8)
 
             ax[ax_i, ax_j].set_xlim([-0.05, 1.05])
             ax[ax_i, ax_j].set_ylim([-0.05, 1.05])
@@ -1828,7 +1806,6 @@ class LOMOPlotter:
 
             detect_val_tp = []
             detected_cmpd_name = []
-            ### Identify outliers in dropped compounds to identify true positives ###
             detected_outliers = 0
             num_drugs = 0
 
@@ -1864,7 +1841,6 @@ class LOMOPlotter:
                 for dropped_cmpd_ in dropped_cmpds:
                     idx_ = self.index([self.moa_id, self.mic_id, self.plate_id], [[m_idx], [0,4], [rep]])
                     feat_vecs_ = self.feat_vecs[idx_]
-                    # feat_vecs_ = pca.transform(feat_vecs[idx_])
 
                     labels_as_name_ = np.array(self.labels_as_name)[idx_]
 
