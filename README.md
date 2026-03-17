@@ -14,7 +14,7 @@ AI for Antibiotics (AI4AB)
 
 ## Overview 
 This repository contains the source code to reproduce the analysis from "Deep learning recognises antibiotic mode of action from brightfield images".
-![width=10](docs%2Fimages%2FOverview_figure.png)
+![width=6](docs%2Fimages%2FOverview_figure.png)
 ## Installation
 
 ### Install dependencies within conda environment
@@ -24,8 +24,8 @@ This repository contains the source code to reproduce the analysis from "Deep le
 3) Navigate to the direcotry containing the cloned repository and install the necessary packages in your conda environment with `pip install -r requirements.txt`
 
 #### Singularity image 
+Alternatively, you can build a singularity image with `singularity build ai4ab.sif ai4ab.def` and use [Apptainer](https://apptainer.org/) or [Docker](https://www.docker.com/).
 
-   
 ## Usage 
 
 ### Datset preparation
@@ -60,16 +60,38 @@ python dataset_preprocessing.py \
 To train a model from scratch, run the following command in your terminal: 
 ```cli
 cd model
-python train.py \
+python run_training.py \
     --data_dir DATA_DIR \
     --save_dir SAVE_DIR \ 
     --train_dir Plate_1 Plate_2 \
-    --test_dir Plate_N 
-    
+    --test_dir Plate_N \
 ```
+### Model testing
+To test the model on the Plate defined in `test_dir`, run the following command: 
+
+```cli
+cd model
+python run_testing.py \
+    --save_dir SAVE_DIR \
+    --ckpt -1 \                       # -1 selects the checkpoint with the lowest validation loss
+```
+### Inference on a different dataset
+To obtain embeddings and predictions on a different dataset, use the following command:
+
+```cli
+cd model
+python run_testing.py \
+    --save_dir SAVE_DIR \
+    --data_dir DATA_DIR \             # This is the path to the data directory
+    --test_dir Plate_1 Plate_2 \      # This specifies what plate(s) should be tested 
+    --ckpt -1 \                       # -1 selects the checkpoint with the lowest validation loss
+```
+
+## Reproduce figures from manuscript
+
 1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)
 2) Unzip file and move embedding data to directory `DATA` in `ai4ab`
-3) Run analysis notebooks
+3) Run analysis notebooks in the `analysis` folder
 
 ## How to cite
 ```bibtex
