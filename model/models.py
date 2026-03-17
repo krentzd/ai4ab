@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 
 class AvgPoolCNN(nn.Module):
-    def __init__(self, num_classes=2, num_channels=3, pretrained=False, dropout=0, n_crops=9):
+    def __init__(self, num_classes=2, num_channels=3, pretrained=False, n_crops=9):
         super().__init__()
 
         self.backbone = models.efficientnet_b0()
@@ -35,6 +35,5 @@ class AvgPoolCNN(nn.Module):
         feat_vec = self.avg_pool_2(out.permute((0, 2, 1))).view(bs, -1)
 
         out = self.fc_final(feat_vec)
-        out = self.dropout(out)
 
         return out, feat_vec

@@ -10,15 +10,9 @@ import random
 import glob
 
 from load_data import load_data
-from utils import plot_sample_batch
+from utils import plot_sample_batch, make_dir
 from models import AvgPoolCNN
-
-def make_dir(dir):
-    """Create directories including subdirectories"""
-    dir_lst = dir.split('/')
-    for idx in range(1, len(dir_lst) + 1):
-        if not os.path.exists(os.path.join(*dir_lst[:idx])):
-            os.mkdir(os.path.join(*dir_lst[:idx]))
+from dataset_class_params import get_dropped_moa_classes
 
 def train(model,
           criterion,
@@ -121,21 +115,18 @@ if __name__ == '__main__':
     parser.add_argument('--dose', default=None, type=str)
     parser.add_argument('--num_channels', default=3, type=int)
     parser.add_argument('--channels', nargs='+', default=None, type=int)
-    parser.add_argument('--crop_size', default=512, type=int)
+    parser.add_argument('--crop_size', default=500, type=int)
+    parser.add_argument('--out_size', default=256, type=int)
     parser.add_argument('--val_split', default=0.2, type=float)
-    parser.add_argument('--batch_size', default=128, type=int)
-    parser.add_argument('--bottleneck_size', default=None)
-    parser.add_argument('--n_crops', default=9, type=int)
-    parser.add_argument('--epochs', default=200, type=int)
+    parser.add_argument('--batch_size', default=16, type=int)
+    parser.add_argument('--epochs', default=250, type=int)
     parser.add_argument('--lr', default=0.001, type=float)
     parser.add_argument('--l2', default=0, type=float)
     parser.add_argument('--subsampling_factor', default=1, type=float)
     parser.add_argument('--ckpt_path', default=None)
     parser.add_argument('--use_e_coli_moa', action='store_true', default=False)
-    parser.add_argument('--max_pool_model', action='store_true', default=False)
     parser.add_argument('--freeze_layers', action='store_true', default=False)
     parser.add_argument('--pretrained', action='store_true', default=False)
-    parser.add_argument('--data_type', default='tiff')
 
     args = parser.parse_args()
 
@@ -162,7 +153,6 @@ if __name__ == '__main__':
 
     if args.val_dir[0] == 'None':
         args.val_dir = None
-
     elif len(args.val_dir) == 0:
         args.val_dir = [random.choice([dir for dir in all_dir if dir not in args.test_dir])]
 
@@ -171,11 +161,6 @@ if __name__ == '__main__':
             args.train_dir = [dir for dir in all_dir if dir not in args.test_dir + args.val_dir]
         else:
             args.train_dir = [dir for dir in all_dir if dir not in args.test_dir]
-
-    print('Train: ', args.train_dir)
-    print('Val: ', args.val_dir)
-    print('Test: ', args.test_dir)
-
 
     if args.ckpt_path:
         if eval(args.ckpt_path) == -1:
@@ -190,27 +175,7 @@ if __name__ == '__main__':
         start_epoch = 0
 
     if len(args.dropped_moa) > 0 and args.use_e_coli_moa:
-        doses = ['0.125xIC50', '0.25xIC50', '0.5xIC50', '1xIC50']
-        for moa in args.dropped_moa:
-            if moa == 'PBP1':
-                class_names = ['Cefsulodin', 'PenicillinG', 'Sulbactam']
-            elif moa == 'PBP2':
-                class_names = ['Avibactam', 'Mecillinam', 'Meropenem', 'Relebactam', 'Clavulanate']
-            elif moa == 'PBP3':
-                class_names = ['Aztreonam', 'Ceftriaxone', 'Cefepime']
-            elif moa == 'Gyrase':
-                class_names = ['Ciprofloxacin', 'Levofloxacin', 'Norfloxacin']
-            elif moa == 'Ribosome':
-                class_names = ['Doxycycline', 'Kanamycin', 'Chloramphenicol', 'Clarithromycin']
-            elif moa == 'Membrane':
-                class_names = ['Colistin', 'PolymyxinB']
-
-            class_names_ = [c for c in ['Ciprofloxacin', 'Cefsulodin', 'Relebactam', 'Ceftriaxone', 'Doxycycline'] if c not in class_names]
-
-            class_names += class_names_
-
-            classes_ = [f'{x}_{d}' for d in doses for x in class_names]
-            args.dropped_classes += classes_
+        args.dropped_classes += get_dropped_moa_classes(args.dropped_moa)
 
     with open(os.path.join(args.save_dir, 'commandline_args.txt'), 'w') as f:
         json.dump(args.__dict__, f, indent=2)
@@ -221,28 +186,21 @@ if __name__ == '__main__':
                 				                                  	 batch_size=args.batch_size,
                 				                                  	 val_split=args.val_split,
                 				                                  	 crop_size=args.crop_size,
+                                                                     out_size=args.out_size,
                 				                                  	 channels=args.channels,
-                				                                  	 data_type=args.data_type,
                 				                                  	 subsampling_factor=args.subsampling_factor,
                                                                      use_e_coli_moa=args.use_e_coli_moa)
 
-    print('Classes', classes)
     # Plot a sample batch and save
     dataiter = iter(train_loader)
     images, __ = next(dataiter)
 
-    plot_sample_batch(torchvision.utils.make_grid(images[:4].view(-1,1,256,256)), args.save_dir)
-
-    # Instantiate CNN, optimizer and loss function
-    num_tiles = int((1500 / args.crop_size) ** 2)
+    plot_sample_batch(torchvision.utils.make_grid(images[:4].view(-1,1,args.out_size,args.out_size)), args.save_dir)
 
     model = AvgPoolCNN(num_classes=len(classes),
                        num_channels=args.num_channels,
-                       pretrained=args.pretrained).to(device)
-
-
-    print(model)
-    print('Trainable parameters:', sum(p.numel() for p in model.parameters() if p.requires_grad))
+                       pretrained=args.pretrained,
+                       n_crops=int((1500 / args.crop_size) ** 2)).to(device)
 
     if args.ckpt_path:
         print(f'Loading model from checkpoint {args.ckpt_path}...')
@@ -258,7 +216,6 @@ if __name__ == '__main__':
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.l2)
     class_weights = torch.Tensor(class_weights).to(device)
-    print('Class weights', classes, class_weights)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     train(model=model,

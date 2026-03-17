@@ -12,83 +12,19 @@ from torch import nn
 from tqdm import tqdm
 
 from load_data import load_data
-from utils import plot_predictions, plot_representations, get_tsne, get_umap, get_pca, plot_image_representations
+from utils import make_dir
 from models import AvgPoolCNN
 
-def make_dir(dir):
-    """Create directories including subdirectories"""
-    dir_lst = dir.split('/')
-    for idx in range(1, len(dir_lst) + 1):
-        if not os.path.exists(os.path.join(*dir_lst[:idx])):
-            os.mkdir(os.path.join(*dir_lst[:idx]))
-
-def make_prediction_matrix(labels, preds, classes_true, classes_pred, save_name, mode='normalize'):
-    from matplotlib.ticker import MultipleLocator
-
-    def return_counts_array(labels, preds):
-        counts_array = np.zeros((int(max(labels)) + 1, int(max(preds)) + 1))
-        for l in np.unique(labels):
-            x = np.array(preds)[np.array(labels) == l]
-            p = np.unique(x, return_counts=True)
-            if p[0].size > 0:
-                for p_idx, p_val in zip(p[0], p[1]):
-                    counts_array[l, p_idx] = p_val
-        return counts_array
-
-    counts_array = return_counts_array(labels, preds)
-    if mode == 'normalize':
-        counts_array_temp = np.zeros_like(counts_array)
-        for i, row in enumerate(counts_array):
-            counts_array_temp[i] = row / row.sum()
-        counts_array = counts_array_temp
-    elif mode == 'max':
-        counts_array_temp = np.zeros_like(counts_array)
-        for i, row in enumerate(counts_array):
-            counts_array_temp[i, np.argmax(row)] = 1
-        counts_array = counts_array_temp
-
-    fig, ax = plt.subplots(figsize=(20,20))
-    ax.matshow(counts_array, cmap=plt.cm.Blues)
-    plt.gca().xaxis.tick_bottom()
-
-    ax.set_xticklabels([''] + classes_true, rotation=90)
-    ax.set_yticklabels([''] + classes_pred)
-
-    for i in range(counts_array.shape[1]):
-        for j in range(counts_array.shape[0]):
-            c = counts_array[j,i]
-            if mode == 'normalize':
-                ax.text(i, j, str(c), va='center', ha='center', c='black' if c < 0.5 else 'white')
-            else:
-                ax.text(i, j, str(c), va='center', ha='center', c='black' if c < 0.5 * counts_array.max() else 'white')
-    if mode == 'normalize':
-        plt.title('Normalized Prediction Counts')
-    if mode == 'max':
-        plt.title('Max Prediction Counts')
-    else:
-        plt.title('Prediction Counts')
-
-    ax.yaxis.set_major_locator(MultipleLocator(1))
-    ax.xaxis.set_major_locator(MultipleLocator(1))
-
-    plt.xlabel('Predicted label')
-    plt.ylabel('True label')
-    print('Saving to', save_name)
-    plt.savefig(save_name)
-
-def test_on_weak(model, test_loader, classes, save_dir, **kwargs):
+def test(model, test_loader, classes, save_dir, **kwargs):
     """
     Compute accuracy on test dataset, plot AUC, show predicted images
     """
-    images = []
     labels = []
     preds = []
     class_probs = []
     test_accuracy = 0
     feat_vecs = []
     test_outputs = []
-
-    fnames = []
 
     model.eval()
     with torch.no_grad():
@@ -104,15 +40,12 @@ def test_on_weak(model, test_loader, classes, save_dir, **kwargs):
 
             test_accuracy += acc/len(test_loader)
 
-            images.append(data[:,4]) #Save center crop
             test_outputs.append(test_output)
             labels.append(label)
             preds.append(test_pred)
             class_probs.append(F.softmax(test_output, dim=1))
             feat_vecs.append(feat_vec)
 
-
-    images = torch.cat(images, dim=0)
     test_outputs = torch.cat(test_outputs, dim=0)
     labels = torch.cat(labels, dim=0)
     preds = torch.cat(preds, dim=0)
@@ -132,10 +65,6 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', required=True)
     parser.add_argument('--use_imagenet', action='store_true', default=False)
     parser.add_argument('--ckpt', default=1000, type=int)
-    parser.add_argument('--dropped_label', default=0, type=int)
-    parser.add_argument('--test_mode', default='normal')
-    parser.add_argument('--model', default='5layer')
-    parser.add_argument('--dropped_classes', nargs='+', default=[])
     parser.add_argument('--save_dir_addition', default='')
 
     args = parser.parse_args()
@@ -153,9 +82,6 @@ if __name__ == '__main__':
 
     if args.test_dir:
         cmd_args['test_dir'] = args.test_dir
-
-    if len(args.dropped_classes) > 0:
-        cmd_args['dropped_classes'] = args.dropped_classes
 
     if isinstance(cmd_args['test_dir'], list):
         cmd_args['test_dir'] = cmd_args['test_dir'][0]
@@ -203,8 +129,8 @@ if __name__ == '__main__':
 
     make_dir(save_dir)
 
-    test_on_weak(model=model,
-                 test_loader=test_loader,
-                 classes=classes,
-                 training_classes=classes,
-                 save_dir=save_dir)
+    test(model=model,
+         test_loader=test_loader,
+         classes=classes,
+         training_classes=classes,
+         save_dir=save_dir)
