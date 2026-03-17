@@ -96,6 +96,8 @@ def make_model_directories(save_dir,
             test_dir_ext = datetime.datetime.now().strftime("%y%m%d_%H%M")
         save_dir_ = os.path.join(save_dir, f"{test_dir}_{test_dir_ext}")
         make_dir(save_dir_)
+        return save_dir_
+        
     else:
         if not os.path.exists(save_dir):
             make_dir(save_dir)
