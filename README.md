@@ -80,7 +80,7 @@ python run_testing.py \
 
 1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)
 2) Unzip file and move embedding data to directory `DATA` in `ai4ab`
-3) Run analysis notebooks
+3) Run analysis notebooks in the `analysis` folder
 
 ## How to cite
 ```bibtex
