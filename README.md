@@ -60,13 +60,22 @@ python dataset_preprocessing.py \
 To train a model from scratch, run the following command in your terminal: 
 ```cli
 cd model
-python train.py \
+python run_training.py \
     --data_dir DATA_DIR \
     --save_dir SAVE_DIR \ 
     --train_dir Plate_1 Plate_2 \
-    --test_dir Plate_N 
-    
+    --test_dir Plate_N \
 ```
+### Inference
+For inference, run the following command: 
+
+```cli
+cd model
+python run_testing.py \
+    --save_dir SAVE_DIR \
+    --ckpt -1 \                   # -1 selects the checkpoint with the lowest validation loss
+```
+
 1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)
 2) Unzip file and move embedding data to directory `DATA` in `ai4ab`
 3) Run analysis notebooks
