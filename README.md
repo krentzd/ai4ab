@@ -87,7 +87,7 @@ python run_testing.py \
     --ckpt -1 \                       # -1 selects the checkpoint with the lowest validation loss
 ```
 
-## Reproduce main figures from manuscript
+## Reproduce figures from manuscript
 
 1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)
 2) Unzip file and move embedding data to directory `DATA` in `ai4ab`
