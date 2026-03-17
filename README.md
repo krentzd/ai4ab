@@ -24,8 +24,8 @@ This repository contains the source code to reproduce the analysis from "Deep le
 3) Navigate to the direcotry containing the cloned repository and install the necessary packages in your conda environment with `pip install -r requirements.txt`
 
 #### Singularity image 
-Alternatively, you can build a singularity image with `singularity build ai4ab.sif ai4ab.def` and run the analysis with Apptainer or Docker.
-   
+Alternatively, you can build a singularity image with `singularity build ai4ab.sif ai4ab.def` and use [Apptainer](https://apptainer.org/) or [Docker](https://www.docker.com/).
+
 ## Usage 
 
 ### Datset preparation
