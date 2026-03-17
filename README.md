@@ -66,8 +66,8 @@ python run_training.py \
     --train_dir Plate_1 Plate_2 \
     --test_dir Plate_N \
 ```
-### Inference
-For inference, run the following command: 
+### Model testing
+To test the model on the Plate defined in `test_dir`, run the following command: 
 
 ```cli
 cd model
