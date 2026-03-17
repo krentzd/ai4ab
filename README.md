@@ -21,6 +21,40 @@ This repository contains the source code to reproduce the analysis from "Deep le
 3) Navigate to the direcotry containing the cloned repository and install the necessary packages in your conda environment with `pip install -r requirements.txt`
    
 ## Usage 
+
+### Install dependencies
+
+#### Conda environment
+
+#### Singularity image 
+
+### Model training quickstart
+
+The dataset should be structured as follows: 
+
+```
+├── DATA_DIR
+    ├── Plate_1
+        ├── Compound_1_Concentration_1
+            ├── img_1.tiff
+            ├── img_2.tiff
+            ├── ...
+        ├──...
+        ├── Compound_N_Concentration_M
+    ├── ...
+    ├── Plate_K
+```
+To preprocess a dataset acquired on a Revvity Opera Phenix high-content screening system, use the following script: 
+
+To train a model run the following command in your terminal: 
+```cli
+python train.py \
+    --data_dir DATA_DIR \
+    --save_dir SAVE_DIR \ 
+    --train_dir Plate_1 Plate_2 \
+    --test_dir Plate_N \
+    
+```
 1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)
 2) Unzip file and move embedding data to directory `DATA` in `ai4ab`
 3) Run analysis notebooks
