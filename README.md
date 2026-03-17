@@ -73,7 +73,18 @@ To test the model on the Plate defined in `test_dir`, run the following command:
 cd model
 python run_testing.py \
     --save_dir SAVE_DIR \
-    --ckpt -1 \                   # -1 selects the checkpoint with the lowest validation loss
+    --ckpt -1 \                       # -1 selects the checkpoint with the lowest validation loss
+```
+### Inference on a different dataset
+To obtain embeddings and predictions on a different dataset, use the following command:
+
+```cli
+cd model
+python run_testing.py \
+    --save_dir SAVE_DIR \
+    --data_dir DATA_DIR \             # This is the path to the data directory
+    --test_dir Plate_1 Plate_2 \      # This specifies what plate(s) should be tested 
+    --ckpt -1 \                       # -1 selects the checkpoint with the lowest validation loss
 ```
 
 ## Reproduce figures from manuscript
