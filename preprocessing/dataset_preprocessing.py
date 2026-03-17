@@ -225,6 +225,7 @@ if __name__ == '__main__':
     parser.add_argument('--target_dir', required=True)
     parser.add_argument('--plate_map_path', required=True)
     parser.add_argument('--dtype', default='uint8', required=False)
+    parser.add_argument('--channels', nargs='+', default=['Brightfield'])
 
     args = parser.parse_args()
 
@@ -235,7 +236,6 @@ if __name__ == '__main__':
     op_data = OperaPhenixDataset(data_path, plate_map)
 
     make_dir(args.target_dir)
-    channels = ['Brightfield']
     for idx in tqdm(op_data.idx_list):
         try:
             condition_name = op_data.plate_map[(idx[0],idx[1])]
@@ -245,12 +245,12 @@ if __name__ == '__main__':
 
             make_dir(new_dir)
 
-            im_as_tiff_stack, im_paths = op_data.read_image_stack(idx[0], idx[1], idx[2], channels, clip=True, return_path=True, dtype=args.dtype)
+            im_as_tiff_stack, im_paths = op_data.read_image_stack(idx[0], idx[1], idx[2], args.channels, clip=True, return_path=True, dtype=args.dtype)
 
             im_base_path = os.path.basename(im_paths[0])
 
             save_path = os.path.join(new_dir, im_base_path)
-            tifffile.imwrite(save_path , im_as_tiff_stack, metadata=dict(axes='CYX', Labels=channels), imagej=True)
+            tifffile.imwrite(save_path , im_as_tiff_stack, metadata=dict(axes='CYX', Labels=args.channels), imagej=True)
 
         except KeyError:
             print(f'KeyError: Could not find {idx}!')
