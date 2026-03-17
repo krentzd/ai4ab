@@ -4,6 +4,8 @@ from PIL import Image
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+import datetime
+import glob
 
 class OverlappingCropMultiChannel:
     """
@@ -89,7 +91,7 @@ def get_class_weights(root_train):
     return class_weights
 
 def make_model_directories(save_dir,
-                           test_dir=None
+                           test_dir=None,
                            test_dir_ext=None):
     if test_dir:
         if test_dir_ext is None:
@@ -97,7 +99,7 @@ def make_model_directories(save_dir,
         save_dir_ = os.path.join(save_dir, f"{test_dir}_{test_dir_ext}")
         make_dir(save_dir_)
         return save_dir_
-        
+
     else:
         if not os.path.exists(save_dir):
             make_dir(save_dir)

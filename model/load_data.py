@@ -19,7 +19,8 @@ def load_data(root_dir,
               channels=None,
               use_e_coli_moa=False,
               use_class_weights=False,
-              subsampling_factor=1.):
+              subsampling_factor=1.,
+              bit_depth=8):
     """
     Return train, val and test dataloaders
     """
@@ -31,6 +32,7 @@ def load_data(root_dir,
             root_train = [os.path.join(root_dir, dir) for dir in train_val_test_dir[0]]
 
     train_dataset = TiffDataset(root=root_train,
+                                bit_depth=bit_depth,
                                 dropped_classes=dropped_classes,
                                 transform=get_train_transforms(crop_size=crop_size, out_size=out_size),
                                 channels=channels,
@@ -49,6 +51,7 @@ def load_data(root_dir,
 
     if 'val_dataset' not in locals():
         val_dataset = TiffDataset(root=root_train,
+                                  bit_depth=bit_depth,
                                   dropped_classes=dropped_classes,
                                   transform=get_train_transforms(crop_size=crop_size, out_size=out_size),
                                   channels=channels,
@@ -64,6 +67,7 @@ def load_data(root_dir,
             root_test = [os.path.join(root_dir, dir) for dir in train_val_test_dir[2]]
 
     test_dataset = TiffDataset(root=root_test,
+                               bit_depth=bit_depth,
                                dropped_classes=dropped_classes,
                                transform=get_test_transforms(crop_size=crop_size, out_size=out_size),
                                channels=channels,

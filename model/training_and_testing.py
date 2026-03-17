@@ -1,7 +1,8 @@
 import torch
 import matplotlib.pyplot as plt
 import os
-import numpt as np
+import numpy as np
+import torch.nn.functional as F
 
 def train(model,
           criterion,
@@ -10,7 +11,7 @@ def train(model,
           train_loader,
           val_loader,
           save_dir,
-          **kwargs):
+          device):
     """
     Training loop
     """
@@ -19,8 +20,7 @@ def train(model,
     val_loss_history = []
     val_accuracy_history = []
 
-    start_epoch = kwargs.get('start_epoch', 0)
-    for epoch in range(start_epoch, epochs):
+    for epoch in range(epochs):
         epoch_loss = 0
         epoch_accuracy = 0
 
@@ -63,7 +63,7 @@ def train(model,
             val_loss_history.append(epoch_val_loss.cpu().detach().numpy())
             val_accuracy_history.append(epoch_val_accuracy.cpu().detach().numpy())
 
-        if (epoch + 1) % 10 == 0 and epoch != 0:
+        if (epoch + 1) % 1 == 0 and epoch != 0:
             torch.save({
                         'epoch': epoch,
                         'model_state_dict': model.state_dict(),
@@ -78,7 +78,7 @@ def train(model,
         plt.xlim([0, epochs])
         plt.legend()
         plt.title('Loss')
-        plt.savefig(os.path.join(save_dir, f'loss_curves_from_{start_epoch}.png'))
+        plt.savefig(os.path.join(save_dir, f'loss_curves.png'))
         plt.close()
 
         plt.figure('Accuracy')
@@ -87,10 +87,15 @@ def train(model,
         plt.xlim([0, epochs])
         plt.legend()
         plt.title('Accuracy')
-        plt.savefig(os.path.join(save_dir, f'accuracy_curves_from_{start_epoch}.png'))
+        plt.savefig(os.path.join(save_dir, f'accuracy_curves.png'))
         plt.close()
 
-def test(model, test_loader, classes, save_dir, **kwargs):
+def test(model,
+         test_loader,
+         classes,
+         save_dir,
+         device):
+
     labels = []
     preds = []
     class_probs = []
@@ -100,16 +105,13 @@ def test(model, test_loader, classes, save_dir, **kwargs):
 
     model.eval()
     with torch.no_grad():
-        for i, (data, label) in enumerate(tqdm(test_loader)):
+        for i, (data, label) in enumerate(test_loader):
             data = data.to(device)
             label = label.to(device)
 
             test_output, feat_vec = model(data)
-
             test_pred = (test_output.argmax(dim=1))
-
             acc = (test_pred == label).float().mean()
-
             test_accuracy += acc/len(test_loader)
 
             test_outputs.append(test_output)

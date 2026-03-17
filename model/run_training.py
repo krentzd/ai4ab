@@ -8,30 +8,26 @@ import numpy as np
 import torchvision
 import random
 import glob
-import datetime
 
 from load_data import load_data
 from utils import plot_sample_batch, make_dir, make_model_directories, parse_train_val_test_dir
 from models import AvgPoolCNN
 from dataset_class_params import get_dropped_moa_classes
-
 from training_and_testing import train
 
 
 if __name__ == '__main__':
     # Parse input parameters
     parser = argparse.ArgumentParser()
-    # General args
+
     parser.add_argument('--data_dir', required=False)
     parser.add_argument('--save_dir', required=True)
-    parser.add_argument('--test_dir', nargs='+', default=[])
-    # Train args
     parser.add_argument('--train_dir', nargs='+', default=[])
+    parser.add_argument('--test_dir', nargs='+', default=[])
     parser.add_argument('--val_dir', nargs='+', default=[])
     parser.add_argument('--dropped_classes', nargs='+', default=[])
     parser.add_argument('--dropped_moa', nargs='+', default=[])
     parser.add_argument('--dose', default=None, type=str)
-    parser.add_argument('--num_channels', default=3, type=int)
     parser.add_argument('--channels', nargs='+', default=None, type=int)
     parser.add_argument('--crop_size', default=500, type=int)
     parser.add_argument('--out_size', default=256, type=int)
@@ -39,12 +35,13 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', default=16, type=int)
     parser.add_argument('--epochs', default=250, type=int)
     parser.add_argument('--lr', default=0.001, type=float)
-    parser.add_argument('--l2', default=0, type=float)
+    parser.add_argument('--l2', default=0.001, type=float)
     parser.add_argument('--subsampling_factor', default=1, type=float)
     parser.add_argument('--use_e_coli_moa', action='store_true', default=False)
     parser.add_argument('--freeze_layers', action='store_true', default=False)
     parser.add_argument('--pretrained', action='store_true', default=False)
     parser.add_argument('--ckpt_path', default=None)
+    parser.add_argument('--im_bit_depth', default=8, type=int)
 
     args = parser.parse_args()
 
@@ -56,12 +53,13 @@ if __name__ == '__main__':
     # Prepare required directories
     make_model_directories(save_dir=args.save_dir)
 
-    if len(args.dropped_moa) > 0 and args.use_e_coli_moa:
+    if len(args.dropped_moa) > 0:
         args.dropped_classes += get_dropped_moa_classes(args.dropped_moa)
 
     with open(os.path.join(args.save_dir, 'commandline_args.txt'), 'w') as f:
         json.dump(args.__dict__, f, indent=2)
 
+    #----------Prepare dataloaders----------#
     train_val_test_dir = parse_train_val_test_dir(args.data_dir,
                                                   args.train_dir,
                                                   args.test_dir,
@@ -78,16 +76,19 @@ if __name__ == '__main__':
         out_size=args.out_size,
         channels=args.channels,
         subsampling_factor=args.subsampling_factor,
-        use_e_coli_moa=args.use_e_coli_moa)
+        use_e_coli_moa=args.use_e_coli_moa,
+        bit_depth=args.im_bit_depth)
 
     dataiter = iter(train_loader)
     images, __ = next(dataiter)
+
+    print('Classes:', classes)
 
     plot_sample_batch(torchvision.utils.make_grid(images[:4].view(-1,1,args.out_size,args.out_size)), args.save_dir)
 
     #----------Model configuration----------#
     model = AvgPoolCNN(num_classes=len(classes),
-                       num_channels=args.num_channels,
+                       num_channels=len(args.channels),
                        pretrained=args.pretrained,
                        n_crops=int((1500 / args.crop_size) ** 2)).to(device)
 
@@ -113,4 +114,5 @@ if __name__ == '__main__':
           epochs=args.epochs,
           train_loader=train_loader,
           val_loader=val_loader,
-          save_dir=args.save_dir)
+          save_dir=args.save_dir,
+          device=device)

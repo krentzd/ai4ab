@@ -8,23 +8,19 @@ import numpy as np
 import torchvision
 import random
 import glob
-import datetime
 
 from load_data import load_data
 from utils import make_model_directories, load_ckpt
 from models import AvgPoolCNN
 from training_and_testing import test
 
-
 if __name__ == '__main__':
     # Parse input parameters
     parser = argparse.ArgumentParser()
-    # General args
+
     parser.add_argument('--data_dir', default=None)
     parser.add_argument('--save_dir', required=True)
     parser.add_argument('--test_dir', default=None)
-    # Train args
-    parser.add_argument('--use_imagenet', action='store_true', default=False)
     parser.add_argument('--ckpt', default=-1, type=int)
     parser.add_argument('--test_dir_ext', default=None)
 
@@ -34,7 +30,6 @@ if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     if device =='cuda':
         print('CUDA available')
-
 
     with open(os.path.join(args.save_dir, 'commandline_args.txt'), 'r') as f:
         cmd_args = json.load(f)
@@ -55,18 +50,17 @@ if __name__ == '__main__':
         crop_size=cmd_args['crop_size'],
         out_size=cmd_args['out_size'],
         channels=cmd_args['channels'],
-        use_e_coli_moa=cmd_args['use_e_coli_moa'])
+        use_e_coli_moa=cmd_args['use_e_coli_moa'],
+        bit_depth=cmd_args['im_bit_depth'])
 
     #----------Model configuration----------#
-
     model = AvgPoolCNN(num_classes=len(classes) - len(cmd_args['dropped_classes']),
-                       num_channels=cmd_args['num_channels'],
+                       num_channels=len(cmd_args['channels']),
                        pretrained=False,
-                       n_crops=int((1500 / args.crop_size) ** 2)).to(device)
+                       n_crops=int((1500 / cmd_args['crop_size']) ** 2)).to(device)
 
-    if not args.use_imagenet:
-        ckpt = load_ckpt(ckpt, args.save_dir)
-        model.load_state_dict(ckpt['model_state_dict'])
+    ckpt = load_ckpt(args.ckpt, args.save_dir)
+    model.load_state_dict(ckpt['model_state_dict'])
 
     model = model.to(device)
 
@@ -78,4 +72,5 @@ if __name__ == '__main__':
     test(model=model,
          test_loader=test_loader,
          classes=classes,
-         save_dir=save_dir)
+         save_dir=save_dir,
+         device=device)

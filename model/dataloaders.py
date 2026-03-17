@@ -95,6 +95,8 @@ class TiffDataset(datasets.VisionDataset):
         extensions=IMG_EXTENSIONS,
         transform=None,
         dropped_classes=[],
+        class_merge_dict=None,
+        subsampling_factor=1.,
         is_valid_file=None,
         channels=None
     ):
@@ -112,7 +114,7 @@ class TiffDataset(datasets.VisionDataset):
 
         self.dropped_classes = dropped_classes
         self.class_merge_dict = class_merge_dict
-        self.subsampling_factor = kwargs.get('subsampling_factor', 1.)
+        self.subsampling_factor = subsampling_factor
 
         self.channels = channels
         if self.channels:
@@ -130,8 +132,8 @@ class TiffDataset(datasets.VisionDataset):
 
         self.bit_depth = bit_depth
 
-    @staticmethod
     def make_dataset(
+        self,
         directory: str,
         class_to_idx: Dict[str, int],
         extensions: Optional[Tuple[str, ...]] = None,
@@ -157,7 +159,7 @@ class TiffDataset(datasets.VisionDataset):
         else:
             class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
 
-         return classes, class_to_idx
+        return classes, class_to_idx
 
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
