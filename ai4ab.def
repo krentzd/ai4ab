@@ -1,0 +1,43 @@
+Bootstrap: docker
+From: ubuntu:20.04
+
+%environment
+    PATH=/opt/conda/bin:$PATH
+    export PATH
+
+%post
+    apt-get update
+    apt-get install -y build-essential wget
+
+    wget https://repo.anaconda.com/miniconda/Miniconda3-py39_25.9.1-3-Linux-x86_64.sh
+    sh Miniconda3-py39_25.9.1-3-Linux-x86_64.sh -b -p /opt/conda
+    rm Miniconda3-py39_25.9.1-3-Linux-x86_64.sh
+    echo "plugins_enabled: false" >> /opt/conda/.condarc
+
+    /opt/conda/bin/pip install --no-cache-dir \
+        torch==1.12.1+cu113 \
+        torchvision==0.13.1+cu113 \
+        torchaudio==0.12.1+cu113 \
+        --extra-index-url https://download.pytorch.org/whl/cu113
+
+    /opt/conda/bin/pip install --no-cache-dir \
+        numpy==1.23.3 \
+        scipy==1.9.1 \
+        pandas==1.5.0 \
+        matplotlib==3.6.0 \
+        Pillow==9.2.0 \
+        scikit-image==0.19.3 \
+        imageio==2.22.0 \
+        tifffile==2022.8.12 \
+        imagecodecs==2024.1.1 \
+        scikit-learn==1.1.2 \
+        umap-learn==0.5.3 \
+        tqdm==4.63.0 \
+        requests==2.27.1 \
+        xmltodict==0.13.0 \
+        lxml==4.9.1 \
+        openpyxl==3.1.2 \
+        tensorboard==2.10.0
+
+%runscript
+    exec ${1+"$@"}
