@@ -23,8 +23,24 @@ This repository contains the source code to reproduce the analysis from "Deep le
 2) Create a conda environment with `python=3.9`
 3) Navigate to the direcotry containing the cloned repository and install the necessary packages in your conda environment with `pip install -r requirements.txt`
 
-#### Singularity image 
-Alternatively, you can build a singularity image with `singularity build ai4ab.sif ai4ab.def` and use [Apptainer](https://apptainer.org/) or [Docker](https://www.docker.com/).
+### Singularity image 
+Alternatively, you can build a [Singularity](https://docs.sylabs.io/guides/3.0/user-guide/installation.html) image using the provided recipe as follows:
+
+```bash
+git clone https://github.com/krentzd/ai4ab.git
+cd ai4ab
+singularity build ai4ab.sif ai4ab.def
+```
+
+After building the singularity image, you can directly run the training and testing scripts from the terminal:
+
+```bash
+singularity exec --bind PATH_TO_AI4AB:PATH_TO_AI4AB --nv ai4ab.sif python model/run_training.py --data_dir DATA_DIR --save_dir SAVE_DIR --train_dir TRAIN_DIR --test_dir TEST_DIR
+
+# or
+
+singularity exec --bind PATH_TO_AI4AB:PATH_TO_AI4AB --nv ai4ab.sif python model/run_training.py --save_dir SAVE_DIR
+```
 
 ## Usage 
 
@@ -47,9 +63,8 @@ Your dataset must obey the following folder structure:
 
 Use the following script to preprocess a TIFF dataset acquired on a Revvity Opera Phenix high-content screening system according to the above-described folder structure: 
 
-```cli
-cd preprocessing
-python dataset_preprocessing.py \
+```bash
+python preprocessing/dataset_preprocessing.py \
     --im_dir IMAGE_DIR \             # IMAGE_DIR must containt TIFF files and an Index.xml file
     --target_dir DATA_DIR \ 
     --plate_map_path PLATE_MAP.csv   # PLATE_MAP.csv must contain 'cond' and 'Destination well' columns
@@ -57,34 +72,39 @@ python dataset_preprocessing.py \
 
 ### Model training
 
-To train a model from scratch, run the following command in your terminal: 
-```cli
-cd model
-python run_training.py \
+To train a model from scratch, run the following command within your conda environment: 
+
+```bash
+python model/run_training.py \
     --data_dir DATA_DIR \
     --save_dir SAVE_DIR \ 
     --train_dir Plate_1 Plate_2 \
     --test_dir Plate_N \
 ```
 ### Model testing
-To test the model on the Plate defined in `test_dir`, run the following command: 
+To test the model on the Plate defined in `test_dir`, run the following command within your conda environment: 
 
-```cli
-cd model
-python run_testing.py \
+```bash
+python model/run_testing.py \
     --save_dir SAVE_DIR \
     --ckpt -1 \                       # -1 selects the checkpoint with the lowest validation loss
 ```
 ### Inference on a different dataset
-To obtain embeddings and predictions on a different dataset, use the following command:
+To obtain embeddings and predictions on a different dataset, run the following command within your conda environment:
 
-```cli
-cd model
-python run_testing.py \
+```bash
+python model/run_testing.py \
     --save_dir SAVE_DIR \
     --data_dir DATA_DIR \             # This is the path to the data directory
     --test_dir Plate_1 Plate_2 \      # This specifies what plate(s) should be tested 
     --ckpt -1 \                       # -1 selects the checkpoint with the lowest validation loss
+```
+
+### Tracking model training
+You can track model training with [Tensorboard](https://docs.pytorch.org/tutorials/recipes/recipes/tensorboard_with_pytorch.html) by running:
+
+```bash
+tensorboard --logdir=SAVE_DIR/tensorboard
 ```
 
 ## Reproduce figures from manuscript
