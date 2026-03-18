@@ -9,27 +9,35 @@ From: ubuntu:20.04
     apt-get update
     apt-get install -y build-essential wget
 
-    # Install Miniconda
     wget https://repo.anaconda.com/miniconda/Miniconda3-py39_25.9.1-3-Linux-x86_64.sh
     sh Miniconda3-py39_25.9.1-3-Linux-x86_64.sh -b -p /opt/conda
     rm Miniconda3-py39_25.9.1-3-Linux-x86_64.sh
+    echo "plugins_enabled: false" >> /opt/conda/.condarc
 
-    # Install pip packages
-    /opt/conda/bin/pip install --no-cache-dir Pillow==10.2.0
-    /opt/conda/bin/pip install --no-cache-dir xmltodict==0.13.0
-    /opt/conda/bin/pip install --no-cache-dir scipy==1.12.0
-    /opt/conda/bin/pip install --no-cache-dir ipython==8.18.1
-    /opt/conda/bin/pip install --no-cache-dir scikit-learn==1.5.1
-    /opt/conda/bin/pip install --no-cache-dir scikit-image==0.22.0
-    /opt/conda/bin/pip install --no-cache-dir imageio==2.34.0
-    /opt/conda/bin/pip install --no-cache-dir tifffile==2024.8.30
-    /opt/conda/bin/pip install --no-cache-dir pandas==1.3.5
-    /opt/conda/bin/pip install --no-cache-dir imagecodecs
-    /opt/conda/bin/pip install --no-cache-dir umap-learn==0.5.2
-    /opt/conda/bin/pip install --no-cache-dir tensorboard==2.16.2
-    /opt/conda/bin/pip install --no-cache-dir torch==2.3.1 torchvision==0.18.1 --extra-index-url https://download.pytorch.org/whl/cu113
-    /opt/conda/bin/pip install --no-cache-dir openpyxl==3.1.2
-    /opt/conda/bin/pip install --no-cache-dir torchio==0.19.6
+    /opt/conda/bin/pip install --no-cache-dir \
+        torch==1.12.1+cu113 \
+        torchvision==0.13.1+cu113 \
+        torchaudio==0.12.1+cu113 \
+        --extra-index-url https://download.pytorch.org/whl/cu113
+
+    /opt/conda/bin/pip install --no-cache-dir \
+        numpy==1.23.3 \
+        scipy==1.9.1 \
+        pandas==1.5.0 \
+        matplotlib==3.6.0 \
+        Pillow==9.2.0 \
+        scikit-image==0.19.3 \
+        imageio==2.22.0 \
+        tifffile==2022.8.12 \
+        imagecodecs==2024.1.1 \
+        scikit-learn==1.1.2 \
+        umap-learn==0.5.3 \
+        tqdm==4.63.0 \
+        requests==2.27.1 \
+        xmltodict==0.13.0 \
+        lxml==4.9.1 \
+        openpyxl==3.1.2 \
+        tensorboard==2.10.0
 
 %runscript
     exec ${1+"$@"}
