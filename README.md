@@ -24,16 +24,22 @@ This repository contains the source code to reproduce the analysis from "Deep le
 3) Navigate to the direcotry containing the cloned repository and install the necessary packages in your conda environment with `pip install -r requirements.txt`
 
 ### Singularity image 
-Alternatively, you can build a [singularity](https://docs.sylabs.io/guides/3.0/user-guide/installation.html) image with `singularity build ai4ab.sif ai4ab.def`. 
-
-Then, to execute the training or testing scripts call:
+Alternatively, you can build a [Singularity](https://docs.sylabs.io/guides/3.0/user-guide/installation.html) image using the provided recipe as follows:
 
 ```bash
-singularity exec --bind PATH_TO_AI4AB:PATH_TO_AI4AB --nv ai4ab.sif python run_training.py --data_dir DATA_DIR --save_dir SAVE_DIR --train_dir TRAIN_DIR --test_dir TEST_DIR
+git clone https://github.com/krentzd/ai4ab.git
+cd ai4ab
+singularity build ai4ab.sif ai4ab.def
+```
+
+After building the singularity image, you can directly run the training and testing scripts from the terminal:
+
+```bash
+singularity exec --bind PATH_TO_AI4AB:PATH_TO_AI4AB --nv ai4ab.sif python model/run_training.py --data_dir DATA_DIR --save_dir SAVE_DIR --train_dir TRAIN_DIR --test_dir TEST_DIR
 
 # or
 
-singularity exec --bind PATH_TO_AI4AB:PATH_TO_AI4AB --nv ai4ab.sif python run_training.py --save_dir SAVE_DIR
+singularity exec --bind PATH_TO_AI4AB:PATH_TO_AI4AB --nv ai4ab.sif python model/run_training.py --save_dir SAVE_DIR
 ```
 
 ## Usage 
