@@ -18,7 +18,7 @@ This repository contains the source code to reproduce the analysis from "Deep le
 ## Installation
 
 ### Install dependencies within conda environment
-First, create and activate a [conda](https://www.anaconda.com/docs/getting-started/miniconda/install/overview) environment:
+First, create and activate a [conda](https://docs.conda.io/en/latest/) environment:
 
 ```bash
 conda create -n ai4ab_env python=3.9
@@ -122,7 +122,7 @@ tensorboard --logdir=SAVE_DIR/tensorboard
 
 1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)
 2) Unzip file and move embedding data to directory `DATA` in `ai4ab`
-3) Run analysis notebooks in the `analysis` folder
+3) Run analysis notebooks in the [`analysis` folder](analysis)
 
 ## How to cite
 ```bibtex
