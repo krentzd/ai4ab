@@ -18,10 +18,21 @@ This repository contains the source code to reproduce the analysis from "Deep le
 ## Installation
 
 ### Install dependencies within conda environment
+First, create and activate a [conda](https://www.anaconda.com/docs/getting-started/miniconda/install/overview) environment:
 
-1) Clone the repository with `git clone https://github.com/krentzd/ai4ab.git`
-2) Create a conda environment with `python=3.9`
-3) Navigate to the direcotry containing the cloned repository and install the necessary packages in your conda environment with `pip install -r requirements.txt`
+```bash
+conda create -n ai4ab_env python=3.9
+conda activate ai4ab_env
+```
+
+Then, clone this repository and install the required dependencies:
+```bash
+git clone https://github.com/krentzd/ai4ab.git
+cd ai4ab
+pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1+cu113 \ # Install PyTorch with the 
+    --extra-index-url https://download.pytorch.org/whl/cu113                         # appropriate CUDA wheel
+pip install -r requirements.txt
+```
 
 ### Singularity image 
 Alternatively, you can build a [Singularity](https://docs.sylabs.io/guides/3.0/user-guide/installation.html) image using the provided recipe as follows:
