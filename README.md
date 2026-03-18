@@ -100,6 +100,13 @@ python model/run_testing.py \
     --ckpt -1 \                       # -1 selects the checkpoint with the lowest validation loss
 ```
 
+### Tracking model training
+You can track model training with [Tensorboard](https://docs.pytorch.org/tutorials/recipes/recipes/tensorboard_with_pytorch.html) by running:
+
+```bash
+tensorboard --logdir=SAVE_DIR/tensorboard
+```
+
 ## Reproduce figures from manuscript
 
 1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)
