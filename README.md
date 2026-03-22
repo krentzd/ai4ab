@@ -29,7 +29,7 @@ Then, clone this repository and install the required dependencies:
 ```bash
 git clone https://github.com/krentzd/ai4ab.git
 cd ai4ab
-pip install torch==1.12.1 torchvision==0.13.1  \ # Install PyTorch
+pip install torch==1.12.1 torchvision==0.13.1  # Install PyTorch
 pip install -r requirements.txt
 ```
 
