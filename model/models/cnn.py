@@ -1,7 +1,8 @@
 """EfficientNet-B0 backbone with average-pooling tile aggregation."""
 
 import os
-from typing import Tuple
+from typing import Tuple, Union, List
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -32,8 +33,11 @@ class AvgPoolCNN(
         num_channels: int = 3,
         pretrained: bool = False,
         n_crops: int = 9,
+        id2label: dict = None
     ) -> None:
         super().__init__()
+
+        self.id2label = id2label
 
         self.backbone = models.efficientnet_b0()
         if pretrained:
@@ -71,3 +75,13 @@ class AvgPoolCNN(
         out = self.fc_final(feat_vec)
 
         return out, feat_vec
+
+    def predict(self, x: torch.Tensor) -> Union[List[int], List[str]]:
+        pred = self.forward(x)[0].argmax(dim=1)
+        if self.id2label:
+            return [self.id2label[str(p.item())] for p in pred]
+        else:
+            return [p.item() for p in pred]
+
+    def feat_vecs(self, x: torch.Tensor) -> np.ndarray:
+        return self.forward(x)[1].detach().numpy()
