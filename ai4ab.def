@@ -37,7 +37,8 @@ From: ubuntu:20.04
         xmltodict==0.13.0 \
         lxml==4.9.1 \
         openpyxl==3.1.2 \
-        tensorboard==2.10.0
+        tensorboard==2.10.0\
+        huggingface_hub[torch]==1.7.2
 
 %runscript
     exec ${1+"$@"}
