@@ -117,6 +117,15 @@ You can track model training with [Tensorboard](https://docs.pytorch.org/tutoria
 tensorboard --logdir=SAVE_DIR/tensorboard
 ```
 
+### Loading a pretrained model
+You can also reuse a model trained on images of drug-treated _E coli_ bacteria like this:
+
+```python
+from models import AvgPoolCNN
+
+model = AvgPoolCNN.from_pretrained('krentzd/ai4ab')
+```
+
 ## Reproduce figures from manuscript
 
 1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)

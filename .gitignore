@@ -5,3 +5,5 @@ __pycache__/
 *.pyd
 *.egg-info/
 */.ipynb_checkpoints/
+model/hf_utils.py
+model/ckpts
