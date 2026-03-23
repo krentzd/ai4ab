@@ -8,13 +8,19 @@ import torch.nn as nn
 from torch.hub import download_url_to_file
 from torchvision import models
 
+from huggingface_hub import PyTorchModelHubMixin
+
 _WEIGHTS_URL = 'https://download.pytorch.org/models/efficientnet_b0_rwightman-3dd342df.pth'
 _WEIGHTS_FILENAME = 'efficientnet_b0_rwightman-3dd342df.pth'
 _WEIGHTS_DIR = os.path.join(os.path.dirname(__file__), 'weights')
 _WEIGHTS_PATH = os.path.join(_WEIGHTS_DIR, _WEIGHTS_FILENAME)
 
 
-class AvgPoolCNN(nn.Module):
+class AvgPoolCNN(
+    nn.Module,
+    PyTorchModelHubMixin,
+    repo_url="https://github.com/krentzd/ai4ab"
+):
     """EfficientNet-B0 that processes n_crops tiles per sample and averages their features.
 
     Input: (bs, n_crops, C, H, W) → Output: (logits (bs, num_classes), feat_vec (bs, 1280))
