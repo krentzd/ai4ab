@@ -122,8 +122,12 @@ You can also reuse a model trained on images of drug-treated _E coli_ bacteria l
 
 ```python
 from models import AvgPoolCNN
+import torch
 
 model = AvgPoolCNN.from_pretrained('krentzd/ai4ab')
+input_tensor = torch.rand(1,9,1,256,256)            # Input: (batch_size, n_crops, C, H, W)
+
+pred = model.predict(input)
 ```
 
 ## Reproduce figures from manuscript
