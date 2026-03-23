@@ -61,12 +61,12 @@ Your dataset must obey the following folder structure:
 ```
 DATA_DIR
 └── Plate_1
-    └── Compound_1_Concentration_1
-        ├── img_1.tiff
-        ├── img_2.tiff
-        └── ...
-    ├──...
-    └── Compound_N_Concentration_M
+│   └── Compound_1_Concentration_1
+│   │   ├── img_1.tiff
+│   │   ├── img_2.tiff
+│   │   └── ...
+│   ├──...
+│   └── Compound_N_Concentration_M
 ├── ...
 └── Plate_K
 ```
