@@ -127,7 +127,8 @@ import torch
 model = AvgPoolCNN.from_pretrained('krentzd/ai4ab')
 input_tensor = torch.rand(1,9,1,256,256)            # Input: (batch_size, n_crops, C, H, W)
 
-pred = model.predict(input)
+pred = model.predict(input)                        # Returns predicted class as str
+feat_vec = model.feat_vecs(input)                  # Returns feature vector as numpy.ndarray 
 ```
 
 ## Reproduce figures from manuscript
