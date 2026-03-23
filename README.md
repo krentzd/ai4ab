@@ -59,16 +59,16 @@ singularity exec --bind PATH_TO_AI4AB:PATH_TO_AI4AB --nv ai4ab.sif python model/
 Your dataset must obey the following folder structure: 
 
 ```
-├── DATA_DIR
-    ├── Plate_1
-        ├── Compound_1_Concentration_1
-            ├── img_1.tiff
-            ├── img_2.tiff
-            ├── ...
-        ├──...
-        ├── Compound_N_Concentration_M
-    ├── ...
-    ├── Plate_K
+DATA_DIR
+└── Plate_1
+    └── Compound_1_Concentration_1
+        ├── img_1.tiff
+        ├── img_2.tiff
+        └── ...
+    ├──...
+    └── Compound_N_Concentration_M
+├── ...
+└── Plate_K
 ```
 
 Use the following script to preprocess a TIFF dataset acquired on a Revvity Opera Phenix high-content screening system according to the above-described folder structure: 
