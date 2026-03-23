@@ -124,11 +124,17 @@ You can also reuse a model trained on images of drug-treated _E coli_ bacteria l
 from models import AvgPoolCNN
 import torch
 
-model = AvgPoolCNN.from_pretrained('krentzd/ai4ab')
+model = AvgPoolCNN.from_pretrained('krentzd/ai4ab') 
 input_tensor = torch.rand(1,9,1,256,256)            # Input: (batch_size, n_crops, C, H, W)
 
 pred = model.predict(input_tensor)                  # Returns predicted class as list of str
 feat_vecs = model.feat_vecs(input_tensor)           # Returns feature vector as numpy.ndarray with dimensions (batch_size, 1280) 
+```
+
+Specific models trained on different sets of plates and imaging channels can be loaded by specifying the `revision` argument as `SPECIES_CHANNEL_REPLICATE`:
+
+```python
+model = AvgPoolCNN.from_pretrained('krentzd/ai4ab', revision='Ecoli_BF_R1') 
 ```
 
 ## Reproduce figures from manuscript
