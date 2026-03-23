@@ -131,7 +131,7 @@ pred = model.predict(input_tensor)                  # Returns predicted class as
 feat_vecs = model.feat_vecs(input_tensor)           # Returns feature vector as numpy.ndarray with dimensions (batch_size, 1280) 
 ```
 
-Specific models trained on different sets of plates and imaging channels can be loaded by specifying the `revision` argument as `SPECIES_CHANNEL_REPLICATE`:
+Specific models trained on different sets of plates and imaging channels (see [Hugging Face repository](https://huggingface.co/krentzd/ai4ab) for all available versions) can be loaded by specifying the `revision` argument:
 
 ```python
 model = AvgPoolCNN.from_pretrained('krentzd/ai4ab', revision='Ecoli_BF_R1') 
