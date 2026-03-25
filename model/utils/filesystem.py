@@ -1,8 +1,8 @@
-"""Directory creation helpers."""
+"""Directory creation helpers and Hugging Face utils."""
 
 import datetime
 import os
-
+from huggingface_hub import HfApi
 
 def make_dir(dir: str) -> None:
     """Recursively create dir, building each path component individually."""
@@ -29,3 +29,9 @@ def make_model_directories(save_dir: str, test_dir=None, test_dir_ext=None) -> s
             make_dir(save_dir)
         if not os.path.exists(os.path.join(save_dir, 'ckpts')):
             os.mkdir(os.path.join(save_dir, 'ckpts'))
+
+def hf_branch_exists(repo_name:str, branch_name: str) -> bool:
+    hf_api = HfApi()
+    branches = hf_api.list_repo_refs(repo_name).branches
+    branch_names  = [b.name for b in branches]
+    return branch_name in branch_names

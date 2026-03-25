@@ -1,13 +1,16 @@
 """EfficientNet-B0 backbone with average-pooling tile aggregation."""
+from __future__ import annotations
 
 import os
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Optional, List
 import numpy as np
 
 import torch
 import torch.nn as nn
 from torch.hub import download_url_to_file
 from torchvision import models
+
+from utils import hf_branch_exists
 
 from huggingface_hub import PyTorchModelHubMixin
 
@@ -20,7 +23,9 @@ _WEIGHTS_PATH = os.path.join(_WEIGHTS_DIR, _WEIGHTS_FILENAME)
 class AvgPoolCNN(
     nn.Module,
     PyTorchModelHubMixin,
-    repo_url="https://github.com/krentzd/ai4ab"
+    repo_url="https://github.com/krentzd/ai4ab",
+    paper_url="https://www.biorxiv.org/content/10.1101/2025.03.30.645928v3",
+    docs_url="https://github.com/krentzd/ai4ab"
 ):
     """EfficientNet-B0 that processes n_crops tiles per sample and averages their features.
 
@@ -66,6 +71,31 @@ class AvgPoolCNN(
 
         return torch.load(_WEIGHTS_PATH)
 
+    @classmethod
+    def from_pretrained(
+        self,
+        hf_repo: str = 'krentzd/ai4ab',
+        species: Optional[str] = None,
+        channels: Optional[List[str]] = None,
+        replicate: Optional[int] = None,
+        experiment: Optional[str] = None
+    ) -> AvgPoolCNN:
+        """Load a pretrained model from Hugging Face"""
+
+        if all(x is not None for x in [species, channels, replicate, experiment]):
+            branch_name = f'{species}_{"-".join(sorted(channels)[::-1])}_R{str(replicate)}_{experiment}'
+        elif all(x is not None for x in [species, channels, replicate]) and experiment is None:
+            branch_name = f'{species}_{"-".join(sorted(channels)[::-1])}_R{str(replicate)}'
+        else:
+            print('Defaulting to main model!')
+            branch_name = 'main'
+
+        assert hf_branch_exists(hf_repo, branch_name), 'The specified model does not exist in the repository!'
+
+        model = super().from_pretrained(hf_repo, revision=branch_name)
+
+        return model
+
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         bs, ncrops, c, h, w = x.size()
         x = x.view(-1, c, h, w)
@@ -76,6 +106,7 @@ class AvgPoolCNN(
 
         return out, feat_vec
 
+    @torch.no_grad()
     def predict(self, x: torch.Tensor) -> Union[List[int], List[str]]:
         pred = self.forward(x)[0].argmax(dim=1)
         if self.id2label:
@@ -83,5 +114,6 @@ class AvgPoolCNN(
         else:
             return [p.item() for p in pred]
 
+    @torch.no_grad()
     def feat_vecs(self, x: torch.Tensor) -> np.ndarray:
-        return self.forward(x)[1].detach().numpy()
+        return self.forward(x)[1].cpu().numpy()
