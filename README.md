@@ -121,9 +121,9 @@ tensorboard --logdir=SAVE_DIR/tensorboard
 You can also reuse a model trained on images of drug-treated _E coli_ bacteria like this:
 
 ```python
+import torch
 from models import AvgPoolCNN
 from data import get_test_transforms
-import torch
 
 model = AvgPoolCNN.from_pretrained()
 
