@@ -141,7 +141,6 @@ model = AvgPoolCNN.from_pretrained(
             species='Ecoli',                       # Select bacterial species
             channels=['BF', 'Hoechst'],            # Select imaging channels
             replicate=2,                           # Model replicate (different training/testing plates)
-            experiment='16bit'                     # Optional
         )
 ```
 
