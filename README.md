@@ -125,7 +125,7 @@ from models import AvgPoolCNN
 from data import get_test_transforms
 import torch
 
-model = AvgPoolCNN.from_pretrained('krentzd/ai4ab')
+model = AvgPoolCNN.from_pretrained()
 
 img_tensor = torch.rand(1, 2160, 2160)              # Image of size (C, H, W)
 input_tensor = get_test_transforms()(img_tensor).unsqueeze(0) # Tensor of size (batch_size, n_crops, C, H, W)
