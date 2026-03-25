@@ -134,7 +134,7 @@ pred = model.predict(input_tensor)                  # Input: (batch_size, n_crop
 feat_vecs = model.feat_vecs(input_tensor)           # Output: feature vector as numpy.ndarray with dimensions (batch_size, 1280) 
 ```
 
-Specific models trained on different sets of plates and imaging channels can be loaded by specifying the `revision` argument (see [Hugging Face repository](https://huggingface.co/krentzd/ai4ab) for all available versions):
+Specific models trained on different sets of plates and imaging channels can be loaded like this:
 
 ```python
 model = AvgPoolCNN.from_pretrained(
