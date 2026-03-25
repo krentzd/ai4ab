@@ -118,7 +118,7 @@ tensorboard --logdir=SAVE_DIR/tensorboard
 ```
 
 ### Loading a pretrained model
-You can also reuse a model trained on images of drug-treated _E coli_ bacteria like this:
+Clone this repository with `git clone https://github.com/krentzd/ai4ab.git` and navigate to the `model` folder. Then you can reuse a model trained on images of drug-treated _E coli_ bacteria like this:
 
 ```python
 import torch
