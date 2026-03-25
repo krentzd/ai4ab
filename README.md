@@ -137,7 +137,12 @@ feat_vecs = model.feat_vecs(input_tensor)           # Output: feature vector as 
 Specific models trained on different sets of plates and imaging channels can be loaded by specifying the `revision` argument (see [Hugging Face repository](https://huggingface.co/krentzd/ai4ab) for all available versions):
 
 ```python
-model = AvgPoolCNN.from_pretrained('krentzd/ai4ab', revision='Ecoli_BF_R1') 
+model = AvgPoolCNN.from_pretrained(
+            species='Ecoli',                       # Select bacterial species
+            channels='BF',                         # Select imaging channels
+            replicate=2,                           # Model replicate (different training/testing plates)
+            experiment='16bit'                     # Optional
+        )
 ```
 
 ## Reproduce figures from manuscript
