@@ -122,13 +122,16 @@ You can also reuse a model trained on images of drug-treated _E coli_ bacteria l
 
 ```python
 from models import AvgPoolCNN
+from data import get_test_transforms
 import torch
 
-model = AvgPoolCNN.from_pretrained('krentzd/ai4ab') 
-input_tensor = torch.rand(1,9,1,256,256)            # Input: (batch_size, n_crops, C, H, W)
+model = AvgPoolCNN.from_pretrained('krentzd/ai4ab')
 
-pred = model.predict(input_tensor)                  # Returns predicted class as list of str
-feat_vecs = model.feat_vecs(input_tensor)           # Returns feature vector as numpy.ndarray with dimensions (batch_size, 1280) 
+img_tensor = torch.rand(1, 2160, 2160)              # Image of size (C, H, W)
+input_tensor = get_test_transforms()(img_tensor).unsqueeze(0) # Tensor of size (batch_size, n_crops, C, H, W)
+
+pred = model.predict(input_tensor)                  # Input: (batch_size, n_crops, C, H, W) → Output: Predicted class as list of str
+feat_vecs = model.feat_vecs(input_tensor)           # Output: feature vector as numpy.ndarray with dimensions (batch_size, 1280) 
 ```
 
 Specific models trained on different sets of plates and imaging channels can be loaded by specifying the `revision` argument (see [Hugging Face repository](https://huggingface.co/krentzd/ai4ab) for all available versions):
