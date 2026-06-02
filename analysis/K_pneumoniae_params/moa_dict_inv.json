@@ -1,0 +1,43 @@
+{
+    "Ribosome": [
+        "Azithromycin",
+        "Chloramphenicol",
+        "Clarithromycin",
+        "Doxycycline",
+        "Kanamycin"
+    ],
+    "Cell wall (PBP 3)": [
+        "Aztreonam",
+        "Cefepime",
+        "Cefixime",
+        "Cefoxitin",
+        "Ceftriaxone",
+        "Cephalothin"
+    ],
+    "Cell wall (PBP 1)": [
+        "Cefsulodin",
+        "Sulbactam"
+    ],
+    "Gyrase": [
+        "Ciprofloxacin",
+        "Levofloxacin",
+        "Norfloxacin"
+    ],
+    "Cell wall (PBP 2)": [
+        "Clavulanate",
+        "Meropenem"
+    ],
+    "Membrane integrity": [
+        "Colistin",
+        "Polymyxin B"
+    ],
+    "Control": [
+        "DMSO"
+    ],
+    "RNA polymerase": [
+        "Rifampicin"
+    ],
+    "DNA synthesis": [
+        "Trimethoprim"
+    ]
+}
