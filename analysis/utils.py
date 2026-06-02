@@ -46,18 +46,22 @@ class DataLoader:
     def __init__(
         self,
         experiment='cross_val',
-        params_dir='E_coli_params'
+        params_dir='E_coli_params',
+        species='E_coli',
+        only_predictions=False
     ):
 
         self.experiment = experiment
         self.params_dir = params_dir
-
+        self.species = species
+        self.only_predictions = only_predictions
+    
     def _load_files(
         self,
         channels,
         replicate
     ):
-        path_pattern = f'../DATA/E_coli/AvgPoolCNN_{self.experiment}_{channels}/test_on_rep_{replicate}/Plate_{replicate}/'
+        path_pattern = f'../DATA/{self.species}/AvgPoolCNN_{self.experiment}_{channels}/test_on_rep_{replicate}/Plate_{replicate}/'
         path = glob(path_pattern)[0]
 
         feat_vecs = np.loadtxt(os.path.join(path, 'feat_vecs.txt'))
@@ -90,10 +94,14 @@ class DataLoader:
                 plate_id.append(np.ones_like(labels_) * p_id)
                 channel_id.append(np.ones_like(labels_) * ch_id)
 
-        self.feat_vecs = np.vstack(feat_vecs)
+        if self.only_predictions:
+            self.feat_vecs = None
+        else:
+            self.feat_vecs = np.vstack(feat_vecs)
+            
+        self.test_outputs = np.vstack(test_outputs)
         self.labels = np.hstack(labels)
         self.preds = np.hstack(preds)
-        self.test_outputs = np.vstack(test_outputs)
         self.plate_id = np.hstack(plate_id)
         self.channel_id = np.hstack(channel_id)
 
@@ -245,7 +253,6 @@ class ResultsPlotter:
 
         plt.xlabel(f'Predicted {label_name}', fontsize=label_fontsize)
         plt.ylabel(f'True {label_name}', fontsize=label_fontsize)
-        print('Saving to', save_name)
         plt.savefig(save_name)
 
 
@@ -283,8 +290,8 @@ class ResultsPlotter:
         cond_labels = [cond_labels_dict[l] for l in self.labels[idx_list]]
         cond_preds = [p.argmax() for p in self.p_conditional(dose, channel, plate)[0]]
 
-        cond_classes_ = [c.split('_')[0] for c in cond_classes]
-
+        cond_classes_ = [c.split('_')[0] for c in cond_classes]        
+        
         self.make_confusion_matrix(cond_labels, cond_preds, cond_classes_, cond_classes_, save_name=save_name, title=title, **kwargs)
 
     def plot_cond_moa_confusion_matrix(
@@ -308,7 +315,7 @@ class ResultsPlotter:
 
         moa_cond_labels = [moa_cond_dict[cond_classes[l]] for l in cond_labels]
         moa_cond_preds = [moa_cond_dict[cond_classes[l]] for l in cond_preds]
-
+                
         self.make_confusion_matrix(moa_cond_labels, moa_cond_preds, sorted(set(moa_cond_dict.values())), sorted(set(moa_cond_dict.values())), save_name=save_name, title=title, **kwargs)
 
     def _get_umap(
@@ -583,7 +590,7 @@ class ResultsPlotter:
         feat_vecs_med = scaler.fit_transform(feat_vecs_med)
 
         sim_matrix = self._make_cosine_similarity_matrix(feat_vecs_med, labels_med)
-
+        
         plt.figure(figsize=(7,7))
         plt.matshow(sim_matrix, cmap='coolwarm', fignum=0)
         plt.tick_params(axis="x", bottom=True, top=False, labelbottom=True, labeltop=False)
@@ -639,11 +646,11 @@ class ResultsPlotter:
         moa_cond_preds = [moa_cond_dict[cond_classes[l]] for l in cond_preds]
         moa_cond_preds_max = []
         moa_cond_labels_max = []
-        for l_ in set(moa_cond_labels):
-            l_idx = self.index([moa_cond_labels],[[l_]])
-            p_ctr = Counter(np.array(moa_cond_preds)[l_idx])
-            moa_cond_labels_max.append(l_)
-            moa_cond_preds_max.append(p_ctr.most_common(1)[0][0])
+        for l_ in set(cond_labels):
+            l_idx = self.index([cond_labels],[[l_]])
+            p_ctr = Counter(np.array(cond_preds)[l_idx])
+            moa_cond_labels_max.append(moa_cond_dict[cond_classes[l_]])
+            moa_cond_preds_max.append(moa_cond_dict[cond_classes[p_ctr.most_common(1)[0][0]]])
 
         return metrics.accuracy_score(moa_cond_labels_max, moa_cond_preds_max)
 
@@ -666,7 +673,6 @@ class ResultsPlotter:
             else:
                 data.append([self._compute_conditional_max_accuracy(4,ch,pl) for pl in [0,1,2,3]])
 
-        print([ch.replace('_', ' + ') for ch in ch_name_list_non_confo])
         ax.set_xticklabels([ch.replace('_', '\n') for ch in ch_name_list_non_confo], fontsize=9)
         bp = ax.boxplot(data, widths=[0.5] * len(ch_name_list_non_confo), positions=[i + 1 for i in range(len(ch_name_list_non_confo))], showfliers=False, meanline=True, showmeans=True)
 
@@ -801,12 +807,14 @@ class ResultsPlotter:
                     cosine_dist.append(cosine_dist_)
 
                 cosine_dist_cmpds.append(cosine_dist)
+
             cosine_dist_cmpds = np.array(cosine_dist_cmpds)
+            
             plt.plot([1,2,3,4], cosine_dist_cmpds.mean(axis=0), 'o--', linewidth=2, label=moa, c=colour_dict[moa])
             plt.fill_between([1,2,3,4], cosine_dist_cmpds.mean(axis=0) - cosine_dist_cmpds.std(axis=0), cosine_dist_cmpds.mean(axis=0) + cosine_dist_cmpds.std(axis=0), alpha=0.1, color=colour_dict[moa])
 
         detection_threshold = self._detection_threshold(plate=plate, sigma=sigma)
-
+        
         plt.hlines(detection_threshold, 1, 4, color='red', linestyle='solid', linewidth=3, label='Detection threshold', alpha=0.5)
 
         plt.xticks([1,2,3,4], ['0.125', '0.25', '0.5', '1'], fontsize=16)
@@ -825,9 +833,9 @@ class ResultsPlotter:
         from sklearn.preprocessing import StandardScaler
         from scipy import spatial
 
-        scaler = StandardScaler(with_std=False)
-        feat_vecs = scaler.fit_transform(self.feat_vecs)
-
+        # scaler = StandardScaler(with_std=False)
+        # feat_vecs = scaler.fit_transform(self.feat_vecs)
+        feat_vecs = self.feat_vecs
         mic_dict = {1:'0.125xIC50', 2:'0.25xIC50', 3:'0.5xIC50', 4:'1xIC50'}
 
         max_cosine_dist = 0
@@ -877,6 +885,7 @@ class ResultsPlotter:
             mean_tpr[-1] = 1.0
             mean_auc = metrics.auc(mean_fpr, mean_tpr)
             std_auc = np.std(aucs)
+
             plt.plot(mean_fpr, mean_tpr,
                      label=f'{mic_dict[d]} (AUC={mean_auc:0.2f}$\pm${std_auc:0.2f})',
                      lw=2, alpha=1)
@@ -1051,12 +1060,12 @@ class SubsamplingPlotter:
         moa_cond_preds = [moa_cond_dict[cond_classes[l]] for l in cond_preds]
         moa_cond_preds_max = []
         moa_cond_labels_max = []
-        for l_ in set(moa_cond_labels):
-            l_idx = self.index([moa_cond_labels],[[l_]])
-            p_ctr = Counter(np.array(moa_cond_preds)[l_idx])
-            moa_cond_labels_max.append(l_)
-            moa_cond_preds_max.append(p_ctr.most_common(1)[0][0])
-
+        for l_ in set(cond_labels):
+            l_idx = self.index([cond_labels],[[l_]])
+            p_ctr = Counter(np.array(cond_preds)[l_idx])
+            moa_cond_labels_max.append(moa_cond_dict[cond_classes[l_]])
+            moa_cond_preds_max.append(moa_cond_dict[cond_classes[p_ctr.most_common(1)[0][0]]])
+        
         return metrics.accuracy_score(moa_cond_labels_max, moa_cond_preds_max)
 
     def _compute_mean_acc(
@@ -1067,6 +1076,7 @@ class SubsamplingPlotter:
         acc_list = []
         for pl in [0, 1, 2, 3]:
             acc_list.append([self._compute_conditional_moa_max_accuracy(dose, sub, pl) for sub in [i for i in range(0,len(sub_vals))]])
+                
         mean_acc = np.array(acc_list).mean(axis=0)
         std_acc = np.array(acc_list).std(axis=0)
 
@@ -1364,6 +1374,7 @@ class LOCOPlotter:
             data_knn_150.append(data_)
         data_knn_150 = np.array(data_knn_150)
 
+        
         plt.figure(figsize=(7,5))
         for m, i in zip(['Cell wall (PBP 1)', 'Cell wall (PBP 2)', 'Cell wall (PBP 3)', 'Gyrase', 'Ribosome'], range(5)):
             mean_vals = np.array([np.mean(data_knn_150[x,i,:]) for x in range(4)])
@@ -1472,8 +1483,6 @@ class LOCOPlotter:
             cntr_preds = Counter(moa_labels_drop_hat)
             mc_preds = cntr_preds.most_common(1)[0][0]
 
-            print(mc_labels, mc_preds, metrics.accuracy_score([mc_labels], [mc_preds]))
-
             plt.figure(figsize=(2,1.5))
             bar_labels_ = [x[0] for x in cntr_preds.most_common(2)]
             bar_labels = [x.split('_')[0] for x in bar_labels_] + [''] * (2 - len(bar_labels_)) + ['Other']
@@ -1481,7 +1490,6 @@ class LOCOPlotter:
             bar_vals = [x for x in bar_vals_] + [0] * (2 - len(bar_vals_))
             other_val = 50 - np.sum(bar_vals)
             bar_vals = bar_vals + [other_val]
-            print(bar_vals)
             plt.title(f'{cmpd_name}')
             bar = plt.barh([0,1,2], bar_vals)
 
@@ -1504,7 +1512,7 @@ class LOCOPlotter:
         from matplotlib.colors import ListedColormap
 
         __, moa_pred_dict = self._knn_clf()
-
+        
         cmpd_names_ = ['Cefsulodin', 'PenicillinG', 'Sulbactam', 'Avibactam', 'Mecillinam', 'Meropenem', 'Clavulanate', 'Relebactam', 'Aztreonam', 'Ceftriaxone', 'Cefepime', 'Ciprofloxacin', 'Levofloxacin', 'Norfloxacin', 'Doxycycline', 'Kanamycin', 'Chloramphenicol', 'Clarithromycin']
         moa_to_num_dict = dict(zip(self.moa_classes, [i for i in range(len(self.moa_classes))]))
         colour_dict = dict(zip(self.moa_classes, self.colour_list))
@@ -1696,8 +1704,7 @@ class LOMOPlotter:
                 X_train, X_test, y_train, y_test = train_test_split(feat_vecs_train, labels_train, test_size=0.1, random_state=42)
 
                 scaler = StandardScaler(with_std=True)
-                X_all = scaler.fit_transform(feat_vecs_)
-                X_train = scaler.transform(X_train)
+                X_train = scaler.fit_transform(X_train)
                 X_test = scaler.transform(X_test)
 
                 clf.fit(X_train)
@@ -1746,9 +1753,10 @@ class LOMOPlotter:
                 tprs.append(np.interp(mean_fpr, fpr, tpr))
                 roc_auc = metrics.auc(fpr, tpr)
                 aucs.append(roc_auc)
-
+                
             mean_tpr = np.mean(tprs, axis=0)
             mean_tpr[-1] = 1.0
+            
             mean_auc = metrics.auc(mean_fpr, mean_tpr)
             std_auc = np.std(aucs)
             ax[ax_i, ax_j].plot(mean_fpr, mean_tpr,
@@ -1829,8 +1837,7 @@ class LOMOPlotter:
                 X_train, X_test, y_train, y_test = train_test_split(feat_vecs_train, labels_train, test_size=0.1, random_state=42)
 
                 scaler = StandardScaler()
-                X_all = scaler.fit_transform(feat_vecs_)
-                X_train = scaler.transform(X_train)
+                X_train = scaler.fit_transform(X_train)
                 X_test = scaler.transform(X_test)
 
                 clf.fit(X_train)
@@ -1859,7 +1866,7 @@ class LOMOPlotter:
             detected_cmpd_name_all.append(detected_cmpd_name)
 
         detect_val_matrix = np.zeros((4, len(detect_val_tp_all[0])))
-
+        
         for i in range(4):
             detect_val_matrix[i,:] = detect_val_tp_all[i]
 
@@ -1938,8 +1945,8 @@ class LOMOPlotter:
                 X_train, X_test, y_train, y_test = train_test_split(feat_vecs_train, labels_train, test_size=0.1, random_state=42)
 
                 scaler = StandardScaler()
-                X_all = scaler.fit_transform(feat_vecs_)
-                X_train = scaler.transform(X_train)
+                X_all = feat_vecs_
+                X_train = scaler.fit_transform(X_train)
                 X_test = scaler.transform(X_test)
 
                 clf.fit(X_train)
