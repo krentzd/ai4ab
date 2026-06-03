@@ -1,0 +1,11 @@
+{
+  "Control": "tab:grey",
+  "Ribosome": "tab:purple",
+  "Cell wall (PBP 1)": "tab:blue",
+  "Cell wall (PBP 2)": "tab:orange",
+  "Cell wall (PBP 3)": "tab:green",
+  "Gyrase": "tab:red",
+  "RNA polymerase": "tab:pink",
+  "DNA synthesis": "tab:olive",
+  "Membrane integrity": "tab:brown"
+}
