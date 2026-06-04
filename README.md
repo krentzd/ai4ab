@@ -146,7 +146,7 @@ model = AvgPoolCNN.from_pretrained(
 
 ## Reproduce figures from manuscript
 
-1) Download embedding data [here](https://drive.proton.me/urls/3MRM7J3MW4#dZKoPQBYuxpw)
+1) Download source data [here](https://doi.org/10.5281/zenodo.20529251)
 2) Unzip file and move embedding data to directory `DATA` in `ai4ab`
 3) Run analysis notebooks in the [`analysis` folder](analysis)
 
