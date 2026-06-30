@@ -64,7 +64,10 @@ class DataLoader:
         path_pattern = f'../DATA/{self.species}/AvgPoolCNN_{self.experiment}_{channels}/test_on_rep_{replicate}/Plate_{replicate}/'
         path = glob(path_pattern)[0]
 
-        feat_vecs = np.loadtxt(os.path.join(path, 'feat_vecs.txt'))
+        if self.only_predictions:
+            feat_vecs = []
+        else:
+            feat_vecs = np.loadtxt(os.path.join(path, 'feat_vecs.txt'))
         labels = np.loadtxt(os.path.join(path, 'labels.txt'))
         preds = np.loadtxt(os.path.join(path, 'preds.txt'))
         test_outputs = np.loadtxt(os.path.join(path, 'test_outputs.txt'))
@@ -95,7 +98,7 @@ class DataLoader:
                 channel_id.append(np.ones_like(labels_) * ch_id)
 
         if self.only_predictions:
-            self.feat_vecs = None
+            self.feat_vecs = []
         else:
             self.feat_vecs = np.vstack(feat_vecs)
             
@@ -291,7 +294,9 @@ class ResultsPlotter:
         cond_preds = [p.argmax() for p in self.p_conditional(dose, channel, plate)[0]]
 
         cond_classes_ = [c.split('_')[0] for c in cond_classes]        
-        
+
+        np.savetxt('cond_labels.txt', cond_labels)
+            
         self.make_confusion_matrix(cond_labels, cond_preds, cond_classes_, cond_classes_, save_name=save_name, title=title, **kwargs)
 
     def plot_cond_moa_confusion_matrix(
@@ -676,7 +681,7 @@ class ResultsPlotter:
         ax.set_xticklabels([ch.replace('_', '\n') for ch in ch_name_list_non_confo], fontsize=9)
         bp = ax.boxplot(data, widths=[0.5] * len(ch_name_list_non_confo), positions=[i + 1 for i in range(len(ch_name_list_non_confo))], showfliers=False, meanline=True, showmeans=True)
 
-        colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink']
+        colors = ['tab:blue'] * 7
 
         for k in range(len(ch_name_list_non_confo)):
             bp['means'][k].set_color(colors[k])
