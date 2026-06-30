@@ -14,7 +14,7 @@ AI for Antibiotics (AI4AB)
 
 ## Overview 
 This repository contains the source code to reproduce the analysis from "Deep learning recognises antibiotic mode of action from brightfield images".
-![width=6](docs%2Fimages%2FOverview_figure.png)
+![width=5.9](docs%2Fimages%2FOverview_figure.png)
 ## Installation
 
 ### Install dependencies within conda environment
