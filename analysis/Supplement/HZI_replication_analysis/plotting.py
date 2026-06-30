@@ -33,8 +33,15 @@ classes_all_ = load_json('HZI_params/classes_all_.json')
 class Plotter:    
     def __init__(self, dose='1xIC50'):
         self.dose = dose
+        
+        if dose == '1xIC50':
+            self.num_data_reps = 10
+        elif dose == '2xIC50':
+            self.num_data_reps = 9
+        
         self.get_predictions()
-    
+
+        
     def get_predictions(self):
         
         acc_list = []
@@ -43,8 +50,8 @@ class Plotter:
         acc_moa_max_list = []
         
         preds_dict = dict()
-        for data_rep in range(1, 11):
-            path_pattern = f'../../../DATA/E_coli_HZI/AvgPoolCNN_cross_val_BF/test_on_rep_{data_rep}/R{data_rep}/'
+        for data_rep in range(1, self.num_data_reps + 1):
+            path_pattern = f'../../../DATA/E_coli_HZI/AvgPoolCNN_cross_val_BF/test_on_rep_{data_rep}/R{data_rep}'
             path = glob(path_pattern)[0]
             
             labels = np.loadtxt(os.path.join(path, 'labels.txt'))
@@ -109,6 +116,8 @@ class Plotter:
             acc_moa_max_list.append(acc_moa_max)
 
         self.acc_moa_max_list = acc_moa_max_list
+
+        np.savetxt(f'acc_moa_max_list_{self.dose}.txt', self.acc_moa_max_list, delimiter=",", fmt="%s") 
         
         preds_moa_dict = dict()
         counts_moa_dict = dict()
@@ -127,6 +136,9 @@ class Plotter:
         
         self.labels_max_srtd = [cmpd_sorting_dict[x.split('_')[0]] for x in labels_max]
         self.preds_max_srtd = [cmpd_sorting_dict[x.split('_')[0]] for x in preds_max]
+
+        np.savetxt(f'labels_max_srtd_{self.dose}.txt', [x.split('_')[1] for x in self.labels_max_srtd], delimiter=",", fmt="%s") 
+        np.savetxt(f'preds_max_srtd_{self.dose}.txt', [x.split('_')[1] for x in self.preds_max_srtd], delimiter=",", fmt="%s") 
         
         self.classes_srtd = [x.split('_')[-1] for x in np.unique(self.labels_max_srtd)]
         
@@ -135,6 +147,9 @@ class Plotter:
         
         self.labels_moa_max_srtd = [moa_sorting_dict[x] for x in labels_moa_max]
         self.preds_moa_max_srtd = [moa_sorting_dict[x] for x in preds_moa_max]
+
+        np.savetxt(f'labels_moa_max_srtd_{self.dose}.txt', [x.split('_')[1] for x in self.labels_moa_max_srtd], delimiter=",", fmt="%s") 
+        np.savetxt(f'preds_moa_max_srtd_{self.dose}.txt', [x.split('_')[1] for x in self.preds_moa_max_srtd], delimiter=",", fmt="%s") 
         
         self.classes_moa_srtd = [x.split('_')[-1] for x in np.unique(self.labels_moa_max_srtd)]
     
@@ -146,11 +161,10 @@ class Plotter:
         
         fig, ax = plt.subplots(figsize=(7, 7))
         sns.heatmap(cf_matrix, annot=True, cmap='Blues', cbar=False, xticklabels=self.classes_srtd, yticklabels=self.classes_srtd, square=True, linewidths=0.5, linecolor='white')
-        plt.title(f'Well-level predictions on replicates 1-10\nConcentration: {self.dose}\nAccuracy: {acc * 100:.2f}%')
+        plt.title(f'Well-level predictions on replicates 1-{self.num_data_reps}\nConcentration: {self.dose}\nAccuracy: {acc * 100:.2f}%')
         plt.xlabel('Predicted compound')
         plt.ylabel('True compound')
         fig.tight_layout()
-        plt.savefig(f'HZI_CM_cmpd_{self.dose}_abs.svg')
         plt.show()
 
     def plot_moa_confusion_matrix(self):
@@ -160,23 +174,21 @@ class Plotter:
         
         fig, ax = plt.subplots(figsize=(7, 7))
         sns.heatmap(cf_matrix, annot=True, cmap='Blues', cbar=False, xticklabels=self.classes_moa_srtd, yticklabels=self.classes_moa_srtd, square=True, linewidths=0.5, linecolor='white')
-        plt.title(f'Well-level predictions on replicates 1-10\nConcentration: {self.dose}\nAccuracy: {acc * 100:.2f}%')
+        plt.title(f'Well-level predictions on replicates 1-{self.num_data_reps}\nConcentration: {self.dose}\nAccuracy: {acc * 100:.2f}%')
         plt.xlabel('Predicted MoA')
         plt.ylabel('True MoA')
         fig.tight_layout()
-        plt.savefig(f'HZI_CM_MoA_{self.dose}_abs.svg')
         plt.show()
 
     def plot_moa_accuracy(self):
             
         plt.figure(figsize=(7, 2))
-        plt.bar([i for i in range(1,11)], self.acc_moa_max_list)
-        plt.hlines(np.mean(self.acc_moa_max_list), 0,11, linestyle='dashed', color='k', label='Mean accuracy')
-        plt.xticks([i for i in range(1,11)], [f'R{i}' for i in range(1,11)])
+        plt.bar([i for i in range(1,self.num_data_reps + 1)], self.acc_moa_max_list)
+        plt.hlines(np.mean(self.acc_moa_max_list), 0, self.num_data_reps + 1, linestyle='dashed', color='k', label='Mean accuracy')
+        plt.xticks([i for i in range(1,self.num_data_reps + 1)], [f'R{i}' for i in range(1,self.num_data_reps + 1)])
         plt.xlabel('Hold-out test replicate')
         plt.ylabel('Hold-out test accuracy')
-        plt.xlim([0.5,10.5])
+        plt.xlim([0.5,self.num_data_reps + 0.5])
         plt.legend(loc='lower right')
         plt.title(f'Mean well-level MoA accuracy ({self.dose}): {np.mean(self.acc_moa_max_list) * 100:.2f}%')
-        plt.savefig(f'HZI_rep_acc_MoA_{self.dose}_abs.svg')
         plt.show()
