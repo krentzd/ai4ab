@@ -100,10 +100,9 @@ class Plotter:
             preds_moa_max = []
             for l_ in set(labels):
                 l_idx = index([labels],[[l_]])
-                p_ctr = Counter(np.array(preds_moa)[l_idx])
+                p_ctr = Counter(np.array(preds)[l_idx])
                 labels_moa_max.append(moa_dict[l_.split('_')[0]])
-                preds_moa_max.append(p_ctr.most_common(1)[0][0])
-        
+                preds_moa_max.append(moa_dict[p_ctr.most_common(1)[0][0].split('_')[0]])
             
             acc = metrics.accuracy_score(labels, preds)
             acc_moa = metrics.accuracy_score(labels_moa, preds_moa)
