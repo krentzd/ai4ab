@@ -310,7 +310,7 @@ def plot_accuracies(acc_dict, title='MoA classification\naccuracy by FOV (1xIC50
     ax.set_xticklabels([cnd.replace('_', '\n') for cnd in cnd_list], fontsize=9)
     bp = ax.boxplot(data, widths=[0.5] * len(cnd_list), positions=[i + 1 for i in range(len(cnd_list))], showfliers=False, meanline=True, showmeans=True)
     
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink']
+    colors = ['tab:blue'] * len(cnd_list)
     
     for k in range(len(cnd_list)):
         bp['means'][k].set_color(colors[k])

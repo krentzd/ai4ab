@@ -22,14 +22,14 @@ def plot_num_images(
         num_images_no_pre.append(plotter2.min_num_images(dose=d) * num_classes * num_doses)
 
     diff = [x-y for x,y in zip(num_images_no_pre, num_images_pre)]
-    percent_diff = [(x-y)/((x+y)/2) for x, y in zip(num_images_no_pre, num_images_pre)]
+    percent_diff = [(x-y)/x for x, y in zip(num_images_no_pre, num_images_pre)]
 
     fig = plt.figure(figsize=(6,4))
     plt.bar([x-0.15 for x in range(4)], num_images_no_pre, width=0.3, label='No pre-training', color='tab:blue')
     plt.bar([x+0.15 for x in range(4)], num_images_pre, width=0.3, label='Pre-training', color='tab:red')
 
     for x, (p, y1, y2) in enumerate(zip(percent_diff, num_images_pre, num_images_no_pre)):
-        plt.text(x, y2+40, f'{p*100:.1f}%', fontsize=10)
+        plt.text(x, y2+40, f'{round(p*100, 1):.1f}%', fontsize=10)
         plt.hlines(y2, x+0.1, x+0.2, color='k')
         plt.arrow(x+0.15, y2, 0, y1-y2+60, head_width=0.1, head_length=50, color='k', overhang=0.2)
 
@@ -606,6 +606,42 @@ class ResultsPlotter:
         plt.savefig(save_name)
         plt.show()
 
+    def _compute_conditional_accuracy(
+        self,
+        dose,
+        channel,
+        plate
+    ):
+        from sklearn import metrics
+        from collections import Counter
+        idx_list = self.index([self.plate_id, self.channel_id, self.mic_id], [[plate], [channel], [0, dose]])
+        cond_classes = self.p_conditional(dose, channel, plate)[1]
+        cond_labels_dict = dict(zip([self.classes.index(c_n) for c_n in cond_classes], [i for i in range(len(cond_classes))]))
+        cond_labels = [cond_labels_dict[l] for l in self.labels[idx_list]]
+        cond_preds = [p.argmax() for p in self.p_conditional(dose, channel, plate)[0]]
+
+        return metrics.accuracy_score(cond_labels, cond_preds)
+
+    def _compute_conditional_moa_accuracy(
+        self,
+        dose,
+        channel,
+        plate
+    ):
+        from sklearn import metrics
+        from collections import Counter
+        idx_list = self.index([self.plate_id, self.channel_id, self.mic_id], [[plate], [channel], [0, dose]])
+        cond_classes = self.p_conditional(dose, channel, plate)[1]
+        cond_labels_dict = dict(zip([self.classes.index(c_n) for c_n in cond_classes], [i for i in range(len(cond_classes))]))
+        cond_labels = [cond_labels_dict[l] for l in self.labels[idx_list]]
+        cond_preds = [p.argmax() for p in self.p_conditional(dose, channel, plate)[0]]
+
+        moa_cond_dict = {k: v for k, v in self.moa_dict.items()}
+
+        moa_cond_labels = [moa_cond_dict[cond_classes[l]] for l in cond_labels]
+        moa_cond_preds = [moa_cond_dict[cond_classes[l]] for l in cond_preds]
+
+        return metrics.accuracy_score(moa_cond_labels, moa_cond_preds)
 
     def _compute_conditional_max_accuracy(
         self,
@@ -662,6 +698,7 @@ class ResultsPlotter:
     def plot_channel_accuracies(
         self,
         use_moa_labels=False,
+        well_level=True,
         save_name='accuracy_plot.svg'
     ):
 
@@ -674,9 +711,15 @@ class ResultsPlotter:
         data = []
         for ch in ch_name_list_non_confo:
             if use_moa_labels:
-                data.append([self._compute_conditional_moa_max_accuracy(4,ch,pl) for pl in [0,1,2,3]])
+                if well_level:
+                    data.append([self._compute_conditional_moa_max_accuracy(4,ch,pl) for pl in [0,1,2,3]])
+                else:
+                    data.append([self._compute_conditional_moa_accuracy(4,ch,pl) for pl in [0,1,2,3]])
             else:
-                data.append([self._compute_conditional_max_accuracy(4,ch,pl) for pl in [0,1,2,3]])
+                if well_level:
+                    data.append([self._compute_conditional_max_accuracy(4,ch,pl) for pl in [0,1,2,3]])
+                else:
+                    data.append([self._compute_conditional_accuracy(4,ch,pl) for pl in [0,1,2,3]])       
 
         ax.set_xticklabels([ch.replace('_', '\n') for ch in ch_name_list_non_confo], fontsize=9)
         bp = ax.boxplot(data, widths=[0.5] * len(ch_name_list_non_confo), positions=[i + 1 for i in range(len(ch_name_list_non_confo))], showfliers=False, meanline=True, showmeans=True)
@@ -711,10 +754,15 @@ class ResultsPlotter:
         plt.hlines(1/9 if use_moa_labels else 1/23, 0.7, 7.3, linestyle='dashed', color='black', alpha=0.5)
         ax.set_ylabel('Hold-out test accuracy', fontsize=9)
         if use_moa_labels:
-            ax.set_title('MoA classification accuracy by well (1xIC50)', fontsize=10)
+            if well_level:
+                ax.set_title('MoA classification accuracy by well (1xIC50)', fontsize=10)
+            else:
+                ax.set_title('MoA classification accuracy by FOV (1xIC50)', fontsize=10)
         else:
-            ax.set_title('Compound classification accuracy by well (1xIC50)', fontsize=10)
-
+            if well_level:
+                ax.set_title('Compound classification accuracy by well (1xIC50)', fontsize=10)
+            else:
+                ax.set_title('Compound classification accuracy by FOV (1xIC50)', fontsize=10)
         legend_elements = [Line2D([0], [0], marker='o', color='w', label='Replicate 1',
                                   markerfacecolor='black', markersize=10),
                            Line2D([0], [0], marker='v', color='w', label='Replicate 2',
